@@ -16,7 +16,7 @@ import { getNetworkThresholds, saveNetworkThresholds, getProxmoxThresholds, save
 import { getActiveAlerts, getAlertHistory } from './controllers/mobileAlertController.js';
 import { getTasksLog, getClusterLog, getTaskDetailLog } from './controllers/proxmoxLogController.js';
 import { verifyApiToken, verifyWebAuth, requireAdmin, attachWebUserIfPresent, attachMobileUserIfPresent } from './middlewares/authMiddleware.js';
-import { getIncidents, joinIncident, resolveIncident, getAnalytics } from './controllers/incidentController.js';
+import { getIncidents, getIncidentStats, joinIncident, resolveIncident, getAnalytics } from './controllers/incidentController.js';
 import { getCleanupSettings, saveCleanupSettings, runManualCleanup } from './controllers/cleanupController.js';
 import { getDashboardSummary } from './controllers/dashboardController.js';
 
@@ -123,6 +123,7 @@ app.put('/api/thresholds/proxmox', verifyWebAuth, requireAdmin, saveProxmoxThres
 
 // Route Insiden & Analitik SLA (Mendukung Web Cookie maupun Bearer Token Mobile via attachMobileUserIfPresent)
 app.get('/api/incidents', attachMobileUserIfPresent, getIncidents);
+app.get('/api/incidents/stats', attachMobileUserIfPresent, getIncidentStats);
 app.get('/api/analytics', attachMobileUserIfPresent, getAnalytics);
 app.post('/api/incidents/join', attachMobileUserIfPresent, joinIncident);
 app.post('/api/incidents/resolve', attachMobileUserIfPresent, resolveIncident);
@@ -141,6 +142,7 @@ app.get('/api/mobile/v1/alerts/history', verifyApiToken, getAlertHistory);
 app.post('/api/mobile/v1/alerts/join', verifyApiToken, joinIncident);
 app.post('/api/mobile/v1/alerts/resolve', verifyApiToken, resolveIncident);
 app.get('/api/mobile/v1/incidents', verifyApiToken, getIncidents);
+app.get('/api/mobile/v1/incidents/stats', verifyApiToken, getIncidentStats);
 app.post('/api/mobile/v1/incidents/join', verifyApiToken, joinIncident);
 app.post('/api/mobile/v1/incidents/resolve', verifyApiToken, resolveIncident);
 app.get('/api/mobile/v1/analytics', verifyApiToken, getAnalytics);

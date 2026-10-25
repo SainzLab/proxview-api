@@ -356,7 +356,7 @@
                 <div class="flex flex-col gap-0.5">
                   <p class="text-xs font-medium">Penanggung Jawab: <span class="font-bold text-cyan-700">{{ ticket.technicians }}</span></p>
                   <p v-if="ticket.severity === 'RECOVERED'" class="text-[11px] font-bold text-blue-600 flex items-center gap-1.5"><i class="ph-bold ph-info"></i> Indikator telah pulih. Menunggu teknisi menutup tiket.</p>
-                  <p v-else class="text-[11px] font-semibold text-amber-600 flex items-center gap-1.5"><i class="ph-bold ph-wrench"></i> Sedang dikerjakan / perbaikan fisik lapangan.</p>
+                  <p v-else class="text-[11px] font-semibold text-amber-600 flex items-center gap-1.5"><i class="ph-bold ph-wrench"></i> Sedang dikerjakan / perbaikan.</p>
                 </div>
               </div>
               <span class="px-3 py-1 bg-cyan-50 text-cyan-700 border border-cyan-200/60 rounded-md text-[10px] font-bold tracking-wider animate-pulse">DIPROSES</span>

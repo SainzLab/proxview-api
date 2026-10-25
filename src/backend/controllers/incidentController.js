@@ -76,6 +76,46 @@ export const getIncidents = async (req, res) => {
 };
 
 // ==========================================
+// 1b. AMBIL RINGKASAN STATISTIK TIKET (5 KOLOM STATS BAR)
+// ==========================================
+export const getIncidentStats = async (req, res) => {
+    try {
+        const [[stats]] = await db.query(`
+            SELECT 
+                COUNT(CASE WHEN a.is_resolved = 0 AND a.severity = 'DOWN' THEN 1 END) AS \`down\`,
+                COUNT(CASE WHEN a.is_resolved = 0 AND a.severity = 'CRITICAL' THEN 1 END) AS \`critical\`,
+                COUNT(CASE WHEN a.is_resolved = 0 AND a.severity = 'WARNING' THEN 1 END) AS \`warning\`,
+                COUNT(CASE WHEN a.is_resolved = 0 AND h.handler_count > 0 THEN 1 END) AS \`progress\`,
+                COUNT(CASE WHEN a.is_resolved = 1 THEN 1 END) AS \`resolved\`,
+                COUNT(CASE WHEN a.is_resolved = 0 THEN 1 END) AS \`total_active\`,
+                COUNT(a.id) AS \`total_tickets\`
+            FROM active_alerts a
+            LEFT JOIN (
+                SELECT alert_id, COUNT(id) AS handler_count 
+                FROM alert_handlers 
+                GROUP BY alert_id
+            ) h ON a.id = h.alert_id
+        `);
+
+        res.json({
+            success: true,
+            data: {
+                down: Number(stats?.down) || 0,
+                critical: Number(stats?.critical) || 0,
+                warning: Number(stats?.warning) || 0,
+                progress: Number(stats?.progress) || 0,
+                resolved: Number(stats?.resolved) || 0,
+                total_active: Number(stats?.total_active) || 0,
+                total_tickets: Number(stats?.total_tickets) || 0
+            }
+        });
+    } catch (error) {
+        console.error("Error getIncidentStats:", error);
+        res.status(500).json({ success: false, message: 'Gagal memuat statistik gangguan' });
+    }
+};
+
+// ==========================================
 // 2. TEKNISI KONFIRMASI (JOIN TIKET)
 // ==========================================
 export const joinIncident = async (req, res) => {
