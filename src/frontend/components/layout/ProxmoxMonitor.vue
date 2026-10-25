@@ -154,7 +154,7 @@
                   <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-[11px]">
                     <div class="flex justify-between text-slate-500 font-medium"><span>CPU:</span> <span class="text-slate-900 font-mono font-bold tracking-tight">{{ vm.cpu_usage }} ({{ vm.cpu_cores }}C)</span></div>
                     <div class="flex justify-between text-slate-500 font-medium"><span>RAM:</span> <span class="text-slate-900 font-mono font-bold tracking-tight">{{ vm.ram_used }} / {{ vm.ram_total }}</span></div>
-                    <div class="flex justify-between text-slate-500 font-medium"><span>Disk:</span> <span class="text-slate-900 font-mono font-bold tracking-tight">{{ vm.disk_total }} <span class="text-[9px] text-slate-400 ml-0.5 font-sans font-medium">(Alloc)</span></span></div>
+                    <div class="flex justify-between text-slate-500 font-medium"><span>Disk:</span> <span class="text-slate-900 font-mono font-bold tracking-tight">{{ vm.disk_total }} <span class="text-[9px] text-slate-400 ml-0.5 font-sans font-medium">(Bootdisk size)</span></span></div>
                     <div class="flex justify-between text-slate-500 font-medium"><span>Uptime:</span> <span class="text-slate-900 font-mono font-bold tracking-tight">{{ vm.uptime }}</span></div>
                     <div class="col-span-2 flex justify-between text-slate-500 font-medium pt-3 mt-1 border-t border-slate-100">
                       <span class="flex items-center gap-1.5"><i class="ph-bold ph-arrow-down text-emerald-500"></i> RX: <span class="text-slate-900 font-mono font-bold tracking-tight">{{ vm.net_in }}</span></span>
