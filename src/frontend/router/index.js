@@ -8,7 +8,7 @@ import TargetMonitoring from '@/components/dashboard/TargetMonitoring.vue';
 import ThresholdConfig from '@/components/dashboard/ThresholdConfig.vue';
 import ProxmoxConfig from '@/components/config/ProxmoxConfig.vue';
 import RekapGangguan from '@/components/dashboard/RekapGangguan.vue';
-import LogSystem from '@/components/dashboard/Log.vue';
+import LogSystem from '@/components/dashboard/log.vue';
 
 const routes = [
   { path: '/', 
