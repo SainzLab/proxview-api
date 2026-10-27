@@ -383,3 +383,10 @@ Perbaikan untuk Fase 1: Perbaikan Darurat (Immediate Action) sesuai SECURITY_AUD
       • Menambahkan validasi peran Admin secara eksplisit di dalam getCleanupSettings, saveCleanupSettings, dan runManualCleanup pada cleanupController.js, disertai pencatatan jejak audit identitas Admin yang
       mengeksekusi pembersihan log.
 *Progres Perbaikan*
+
+
+
+NOTE BUG
+-Tutup Sesi jika tidak ada interkasi selama 1 menti bug pop up timeout muncul tapi ketika klik refresh tidak logout padahal tidak ada interkasi lebih dari 1 menit
+-Sistem Matrix tidak langsung berjalan (berjalan setelah trigger ada 1 gangguan)
+-salin token pada manajemen user tidak jalan
