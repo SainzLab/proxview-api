@@ -124,13 +124,19 @@ export const joinIncident = async (req, res) => {
     const user_name = req.body.user_name || req.user?.name || req.user?.username;
 
     if (!alert_id || !user_id || !user_name) {
-        return res.status(400).json({
-            success: false,
-            message: 'Parameter alert_id serta identitas teknisi (user_id, user_name atau Bearer Token) wajib disertakan.'
-        });
+        return res.status(400).json({ success: false, message: 'Parameter alert_id serta identitas teknisi (user_id, user_name atau Bearer Token) wajib disertakan.' });
     }
 
     try {
+        // BLOKIR KEPALA BIDANG: Validasi role langsung dari database
+        const [userRows] = await db.query('SELECT role FROM users WHERE id = ?', [user_id]);
+        if (userRows.length > 0 && userRows[0].role === 'Kepala Bidang') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Akses Ditolak: Kepala Bidang tidak memiliki wewenang operasional untuk menangani tiket lapangan.' 
+            });
+        }
+
         const [alertRows] = await db.query('SELECT id, is_resolved FROM active_alerts WHERE id = ?', [alert_id]);
         if (alertRows.length === 0) {
             return res.status(404).json({ success: false, message: 'Tiket gangguan tidak ditemukan.' });
@@ -140,13 +146,15 @@ export const joinIncident = async (req, res) => {
         }
 
         await db.query(
-            'INSERT IGNORE INTO alert_handlers (alert_id, user_id, user_name) VALUES (?, ?, ?)',
+            'INSERT IGNORE INTO alert_handlers (alert_id, user_id, user_name) VALUES (?, ?, ?)', 
             [alert_id, user_id, user_name]
         );
+        
         await db.query(
             'INSERT INTO system_logs (level, source, message) VALUES (?, ?, ?)', 
             ['INFO', 'TICKET SYSTEM', `Teknisi ${user_name} mengkonfirmasi penanganan tiket #${alert_id}`]
         );
+
         res.json({ success: true, message: 'Berhasil bergabung dalam penanganan tiket' });
     } catch (error) {
         console.error("Error joinIncident:", error);
@@ -159,6 +167,7 @@ export const joinIncident = async (req, res) => {
 // ==========================================
 export const resolveIncident = async (req, res) => {
     const alert_id = req.body.alert_id || req.body.id;
+    const user_id = req.user?.id || req.body.user_id; 
     const user_name = req.body.user_name || req.user?.name || req.user?.username || 'Teknisi';
 
     if (!alert_id) {
@@ -166,26 +175,31 @@ export const resolveIncident = async (req, res) => {
     }
 
     try {
+        // BLOKIR KEPALA BIDANG: Cegah penyelesaian tiket oleh manajemen
+        if (user_id) {
+            const [userRows] = await db.query('SELECT role FROM users WHERE id = ?', [user_id]);
+            if (userRows.length > 0 && userRows[0].role === 'Kepala Bidang') {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: 'Akses Ditolak: Kepala Bidang tidak memiliki wewenang untuk menutup tiket perbaikan.' 
+                });
+            }
+        }
+
         const [alertData] = await db.query('SELECT severity, is_resolved FROM active_alerts WHERE id = ?', [alert_id]);
         
         if (alertData.length === 0) {
             return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan.' });
         }
-
         if (alertData[0].is_resolved === 1) {
             return res.json({ success: true, message: 'Tiket sudah berstatus selesai.' });
         }
-
         if (alertData[0].severity !== 'RECOVERED') {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Gagal! Sistem masih mendeteksi adanya gangguan. Pastikan indikator sistem kembali normal sebelum menutup tiket.' 
-            });
+            return res.status(400).json({ success: false, message: 'Gagal! Sistem masih mendeteksi adanya gangguan. Pastikan indikator sistem kembali normal sebelum menutup tiket.' });
         }
 
         await db.query('UPDATE active_alerts SET is_resolved = 1, resolved_at = CURRENT_TIMESTAMP WHERE id = ?', [alert_id]);
-        await db.query('INSERT INTO system_logs (level, source, message) VALUES (?, ?, ?)', 
-            ['INFO', 'TICKET SYSTEM', `Tiket #${alert_id} ditutup secara manual oleh teknisi ${user_name}`]);
+        await db.query('INSERT INTO system_logs (level, source, message) VALUES (?, ?, ?)', ['INFO', 'TICKET SYSTEM', `Tiket #${alert_id} ditutup secara manual oleh teknisi ${user_name}`]);
 
         res.json({ success: true, message: 'Tiket berhasil ditandai selesai' });
     } catch (error) {

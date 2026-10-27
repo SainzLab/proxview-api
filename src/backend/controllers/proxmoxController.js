@@ -196,6 +196,7 @@ export const getProxmoxResources = async (req, res) => {
       storage: st.storage,
       node: st.node, // <--- IDENTIFIKATOR NODE
       type: st.plugintype,
+      status: st.status || (st.maxdisk && st.maxdisk > 0 ? 'available' : 'offline'),
       used: formatBytes(st.disk),
       total: formatBytes(st.maxdisk)
     }));

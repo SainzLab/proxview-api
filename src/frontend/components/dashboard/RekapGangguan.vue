@@ -303,7 +303,7 @@
               <!-- Tahap 1: Deteksi -->
               <div class="flex flex-col items-center gap-3 w-24">
                 <div class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-white" :class="ticket.is_resolved ? 'bg-emerald-500' : 'bg-slate-700'">
-                  <i class="ph-bold ph-check text-lg"></i>
+                  <i class="ph-bold ph-warning text-lg"></i>
                 </div>
                 <span class="text-xs font-bold text-slate-800 text-center leading-tight">Gangguan Terdeteksi</span>
               </div>
@@ -329,7 +329,7 @@
               <div class="flex flex-col items-center gap-3 w-24">
                 <div class="w-8 h-8 shrink-0 rounded-full border flex items-center justify-center transition-colors duration-500" :class="ticket.status === 'Selesai' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-400 border-slate-200'">
                   <i v-if="ticket.status === 'Selesai'" class="ph-bold ph-check text-lg"></i>
-                  <span v-else class="font-bold text-sm">3</span>
+                  <i v-else class="ph-bold ph-check text-lg"></i>
                 </div>
                 <span class="text-xs text-center leading-tight" :class="ticket.status === 'Selesai' ? 'text-emerald-600 font-bold' : 'text-slate-400 font-medium'">Terkonfirmasi</span>
               </div>
@@ -518,10 +518,19 @@ const fetchTickets = async (silent = false) => {
         }
         return { ...t, isExpanded: expanded };
       });
+      
       hasInitializedExpand.value = true;
-      stats.value.down = tickets.value.filter(t => t.severity === 'DOWN' && t.is_resolved === 0).length;
-      stats.value.critical = tickets.value.filter(t => t.severity === 'CRITICAL' && t.is_resolved === 0).length;
-      stats.value.warning = tickets.value.filter(t => t.severity === 'WARNING' && t.is_resolved === 0).length;
+
+      // ==========================================
+      // PERBAIKAN: Kalkulasi Total Riwayat (Keseluruhan)
+      // Menggunakan fallback original_severity agar tiket yang sudah 
+      // 'RECOVERED' tetap terhitung di kategori aslinya.
+      // ==========================================
+      stats.value.down = tickets.value.filter(t => (t.original_severity || t.severity) === 'DOWN').length;
+      stats.value.critical = tickets.value.filter(t => (t.original_severity || t.severity) === 'CRITICAL').length;
+      stats.value.warning = tickets.value.filter(t => (t.original_severity || t.severity) === 'WARNING').length;
+      
+      // Status progres dan selesai dibiarkan normal
       stats.value.progress = tickets.value.filter(t => t.status === 'Dalam Penanganan').length;
       stats.value.resolved = tickets.value.filter(t => t.is_resolved === 1).length;
     }

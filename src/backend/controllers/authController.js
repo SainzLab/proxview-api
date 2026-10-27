@@ -127,7 +127,7 @@ export const mobileLogin = async (req, res) => {
     const clientInfo = getClientInfo(req); // Ambil info IP dan Device Flutter
 
     if (!username || !password || !token) {
-        await addSystemLog('WARNING', 'MOBILE_AUTH', `Percobaan login ditolak: Parameter tidak lengkap. ${clientInfo}`);
+        await addSystemLog('WARNING', 'MOBILE AUTH', `Percobaan login ditolak: Parameter tidak lengkap. ${clientInfo}`);
         return res.status(400).json({
             success: false,
             message: 'Akses ditolak: Username, password, dan token otorisasi wajib diisi lengkap.'

@@ -121,7 +121,7 @@ const userRole = ref('');
 // FITUR AUTO-LOGOUT (INACTIVITY TIMEOUT)
 // ==========================================
 let timeoutTimer = null;
-const INACTIVITY_LIMIT = 6000 * 10000; // 1 menit
+const INACTIVITY_LIMIT = 60 * 1000; // 1 menit
 const showTimeoutModal = ref(false);
 let isAutoLogout = false; // Flag untuk membedakan auto-logout dan manual logout
 
