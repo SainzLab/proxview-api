@@ -25,3 +25,4 @@ logs/
 *.njsproj
 *.sln
 *.swp
+src/backend/serviceAccountKey.json
