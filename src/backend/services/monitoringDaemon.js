@@ -3,9 +3,10 @@ import ping from 'ping';
 import net from 'net';
 import axios from 'axios';
 import https from 'https';
-import admin from 'firebase-admin'; // TAMBAHKAN FIREBASE ADMIN
+// HAPUS import admin from 'firebase-admin' karena bentrok dengan ES Modules
 import { getWibYear, WIB_OFFSET_MS } from '../config/timezone.js';
 import { executeScheduledCleanupIfDue, ensureCleanupSettingsTable } from '../controllers/cleanupController.js';
+import { getMessaging } from 'firebase-admin/messaging'; // Gunakan import ini untuk FCM
 
 // Tracker berurutan untuk kegagalan ping/TCP (RTO Tolerance)
 const failureCounts = new Map();
@@ -194,8 +195,8 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
                         }
                     };
                     
-                    // Fire and forget (tanpa await agar tidak memblokir daemon loop)
-                    admin.messaging().sendMulticast(fcmPayload)
+                    // Fire and forget menggunakan getMessaging() ES Module
+                    getMessaging().sendMulticast(fcmPayload)
                          .then(res => console.log(`[FCM] Push terkirim ke ${res.successCount} perangkat untuk alert #${currentAlertId}.`))
                          .catch(err => console.error(`[FCM ERROR] Gagal mengirim pesan multicast:`, err));
                 }

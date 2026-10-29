@@ -16,9 +16,8 @@ const pool = mysql.createPool({
 
 // Pastikan NOW()/CURRENT_TIMESTAMP/CURRENT_DATE/DATE_FORMAT di MySQL memakai UTC
 pool.pool.on('connection', (conn) => {
-  conn.query(`SET time_zone = '${DB_TZ_OFFSET}'`).catch(err => {
-    // Menangkap unhandled promise rejection jika set timezone gagal
-    console.error('[DB ERROR] Gagal mengatur timezone pada koneksi baru:', err.message);
+  conn.query(`SET time_zone = '${DB_TZ_OFFSET}'`, (err) => {
+    if (err) console.error('[DB ERROR] Gagal mengatur timezone pada koneksi baru:', err.message);
   });
 });
 

@@ -5,20 +5,18 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import { initializeApp, cert } from 'firebase-admin/app';
 
-// === TAMBAHKAN INISIALISASI FIREBASE ADMIN ===
-import admin from 'firebase-admin';
-
-// Pastikan file serviceAccountKey.json sudah Anda letakkan di root folder backend
 try {
     const serviceAccountPath = new URL('./serviceAccountKey.json', import.meta.url);
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+    
+    initializeApp({
+        credential: cert(serviceAccount)
     });
     console.log('[INFO] Firebase Admin SDK berhasil diinisialisasi.');
 } catch (error) {
-    console.error('[CRITICAL ERROR] Gagal menginisialisasi Firebase Admin. Pastikan file serviceAccountKey.json tersedia.', error.message);
+    console.error('[CRITICAL ERROR] Gagal menginisialisasi Firebase Admin.', error.message);
 }
 // =============================================
 
