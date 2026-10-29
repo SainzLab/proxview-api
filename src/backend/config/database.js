@@ -9,14 +9,33 @@ const pool = mysql.createPool({
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 50,
   queueLimit: 0,
-  timezone: DB_TZ_OFFSET // konversi Date <-> DATETIME memakai UTC
+  timezone: DB_TZ_OFFSET
 });
 
 // Pastikan NOW()/CURRENT_TIMESTAMP/CURRENT_DATE/DATE_FORMAT di MySQL memakai UTC
 pool.pool.on('connection', (conn) => {
-  conn.query(`SET time_zone = '${DB_TZ_OFFSET}'`);
+  conn.query(`SET time_zone = '${DB_TZ_OFFSET}'`).catch(err => {
+    // Menangkap unhandled promise rejection jika set timezone gagal
+    console.error('[DB ERROR] Gagal mengatur timezone pada koneksi baru:', err.message);
+  });
 });
+
+// Helper Transaksi Database untuk menjaga integritas data (ACID)
+export const withTransaction = async (callback) => {
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    try {
+        const result = await callback(connection);
+        await connection.commit();
+        return result;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+};
 
 export default pool;

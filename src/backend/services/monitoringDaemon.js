@@ -3,6 +3,7 @@ import ping from 'ping';
 import net from 'net';
 import axios from 'axios';
 import https from 'https';
+import admin from 'firebase-admin'; // TAMBAHKAN FIREBASE ADMIN
 import { getWibYear, WIB_OFFSET_MS } from '../config/timezone.js';
 import { executeScheduledCleanupIfDue, ensureCleanupSettingsTable } from '../controllers/cleanupController.js';
 
@@ -104,11 +105,13 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
     const thresholdCount = Math.max(1, Number(maxCount) || 1);
     const targetDisplayName = target.name || target.node || `ID-${target.id}`;
 
-    // Akumulasi hitungan berurutan selama target masih bermasalah (jangan reset ke 1 saat naik level bahaya)
+    // Akumulasi hitungan berurutan
     state.failCount += 1;
     state.currentSeverity = severity;
 
     if (state.failCount >= thresholdCount) {
+        let currentAlertId = null;
+
         try {
             const [existing] = await db.query(
                 'SELECT id, severity, original_severity, action_type, message FROM active_alerts WHERE target_id = ? AND target_type = ? AND is_resolved = 0',
@@ -118,19 +121,21 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
             const logLevel = severity === 'WARNING' ? 'WARNING' : 'ERROR';
 
             if (existing.length === 0) {
-                // Buat tiket baru secara otomatis
+                // Buat tiket baru
                 const [result] = await db.query(
                     `INSERT INTO active_alerts (target_id, target_type, target_name, severity, original_severity, action_type, message) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                     [target.id, moduleType, targetDisplayName, severity, severity, safeAction, message]
                 );
 
-                const ticketId = `#INC-${getWibYear()}-${String(result.insertId).padStart(4, '0')}`;
+                currentAlertId = result.insertId;
+                const ticketId = `#INC-${getWibYear()}-${String(currentAlertId).padStart(4, '0')}`;
                 const logMsg = `Tiket ${ticketId} otomatis dibuat: [${moduleType}] ${targetDisplayName} berstatus ${severity} (${message})`;
                 console.log(`[ALERT TRIGGERED] ${logMsg}`);
 
                 await addDaemonLog(logLevel, logMsg);
             } else {
                 const currentAlert = existing[0];
+                currentAlertId = currentAlert.id;
                 const prevRank = SEVERITY_RANK[currentAlert.severity] ?? 0;
                 const newRank = SEVERITY_RANK[severity] ?? 1;
                 const origRank = SEVERITY_RANK[currentAlert.original_severity] ?? prevRank;
@@ -139,10 +144,10 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
                 if (currentAlert.severity !== severity) {
                     await db.query(
                         `UPDATE active_alerts SET target_name = ?, severity = ?, original_severity = ?, action_type = ?, message = ? WHERE id = ?`,
-                        [targetDisplayName, severity, highestOriginal, safeAction, message, currentAlert.id]
+                        [targetDisplayName, severity, highestOriginal, safeAction, message, currentAlertId]
                     );
 
-                    const ticketId = `#INC-${getWibYear()}-${String(currentAlert.id).padStart(4, '0')}`;
+                    const ticketId = `#INC-${getWibYear()}-${String(currentAlertId).padStart(4, '0')}`;
                     let logMsg;
                     if (currentAlert.severity === 'RECOVERED') {
                         logMsg = `Gangguan Berulang pada Tiket ${ticketId}: [${moduleType}] ${targetDisplayName} kembali berstatus ${severity} (${message})`;
@@ -154,16 +159,49 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
                     console.log(`[ALERT UPDATED] ${logMsg}`);
                     await addDaemonLog(logLevel, logMsg);
                 } else if (currentAlert.message !== message || currentAlert.action_type !== safeAction) {
-                    // Perbarui detail angka metrik terkini pada tiket tanpa menduplikasi log
                     await db.query(
                         `UPDATE active_alerts SET target_name = ?, action_type = ?, message = ? WHERE id = ?`,
-                        [targetDisplayName, safeAction, message, currentAlert.id]
+                        [targetDisplayName, safeAction, message, currentAlertId]
                     );
                 }
             }
             state.isAlerting = true;
         } catch (error) {
-            console.error('[ALERT ERROR] Gagal menyimpan alert:', error);
+            console.error('[ALERT ERROR] Gagal menyimpan alert ke DB:', error);
+            return; // Hentikan eksekusi FCM jika insert DB gagal
+        }
+
+        // HANYA TEMBAKKAN FCM SAAT PERTAMA KALI MELEWATI THRESHOLD
+        if (state.failCount === thresholdCount) {
+            try {
+                // Ambil token teknisi yang aktif (kecuali Kepala Bidang)
+                const [techs] = await db.query("SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL AND role != 'Kepala Bidang' AND is_active = 1");
+                const tokens = techs.map(t => t.fcm_token);
+
+                if (tokens.length > 0) {
+                    const fcmPayload = {
+                        tokens: tokens,
+                        data: {
+                            alert_id: String(currentAlertId),
+                            target_name: targetDisplayName,
+                            severity: severity,
+                            action_type: safeAction, 
+                            message: message,
+                            click_action: "FLUTTER_NOTIFICATION_CLICK"
+                        },
+                        android: { 
+                            priority: 'high' // Wajib 'high' untuk menembus Doze Mode Android
+                        }
+                    };
+                    
+                    // Fire and forget (tanpa await agar tidak memblokir daemon loop)
+                    admin.messaging().sendMulticast(fcmPayload)
+                         .then(res => console.log(`[FCM] Push terkirim ke ${res.successCount} perangkat untuk alert #${currentAlertId}.`))
+                         .catch(err => console.error(`[FCM ERROR] Gagal mengirim pesan multicast:`, err));
+                }
+            } catch (fcmDbErr) {
+                console.error('[FCM DB ERROR] Gagal mengambil token teknisi dari DB:', fcmDbErr);
+            }
         }
     }
 };
@@ -235,7 +273,6 @@ const getClusterResourcesCached = async (pve) => {
     const data = Array.isArray(res.data?.data) ? res.data.data : [];
     pxCache.clusterResources.set(pve.id, { data, expires: now + CACHE_TTL_MS });
 
-    // Jika sebelumnya status node di DB belum TERHUBUNG, perbarui otomatis karena API berhasil merespon
     if (pve.status !== 'TERHUBUNG') {
         db.query('UPDATE proxmox_nodes SET status = "TERHUBUNG" WHERE id = ?', [pve.id]).catch(() => {});
     }
@@ -276,7 +313,6 @@ const fetchLiveProxmoxMetrics = async (pt) => {
             resources = await getClusterResourcesCached(pve);
             anyClusterReachable = true;
         } catch (err) {
-            // Jika server Proxmox ini tidak merespon, tandai GAGAL dan coba server berikutnya (jika ada)
             db.query('UPDATE proxmox_nodes SET status = "GAGAL", latency = "-" WHERE id = ?', [pve.id]).catch(() => {});
             continue;
         }
@@ -295,7 +331,6 @@ const fetchLiveProxmoxMetrics = async (pt) => {
                 };
             }
 
-            // Ambil detail status node (untuk IO Delay / wait & metrik presisi)
             let cpuPct = Number(((nodeResource.cpu || 0) * 100).toFixed(1));
             let ramPct = Number((nodeResource.maxmem ? (nodeResource.mem / nodeResource.maxmem) * 100 : 0).toFixed(1));
             let ioDelayPct = 0;
@@ -314,62 +349,39 @@ const fetchLiveProxmoxMetrics = async (pt) => {
                     }
                 }
             } catch (nodeErr) {
-                // Jika endpoint /nodes/{node}/status gagal/timeout padahal cluster hidup, node kemungkinan baru saja mati
                 return {
                     isUp: false,
                     reason: `Node Fisik ${pt.node} tidak merespon (${nodeErr.message})`
                 };
             }
 
-            return {
-                isUp: true,
-                cpu: cpuPct,
-                ram: ramPct,
-                ioDelay: ioDelayPct
-            };
+            return { isUp: true, cpu: cpuPct, ram: ramPct, ioDelay: ioDelayPct };
         } else {
-            // VM ('qemu') atau LXC ('lxc')
             const expectedType = pt.type === 'VM' ? 'qemu' : 'lxc';
             const machine = resources.find(
-                r =>
-                    r.type === expectedType &&
-                    (
-                        (pt.vmid != null && String(r.vmid) === String(pt.vmid)) ||
-                        (pt.vmid == null && r.name === pt.name)
-                    ) &&
-                    (!pt.node || r.node === pt.node)
+                r => r.type === expectedType && 
+                     ((pt.vmid != null && String(r.vmid) === String(pt.vmid)) || (pt.vmid == null && r.name === pt.name)) &&
+                     (!pt.node || r.node === pt.node)
             );
 
             if (!machine) continue;
 
-            // Cek apakah node fisik tempat VM/LXC berada sedang offline
             const parentNode = resources.find(r => r.type === 'node' && r.node === machine.node);
             if (parentNode && String(parentNode.status || '').toLowerCase() === 'offline') {
-                return {
-                    isUp: false,
-                    reason: `Node induk (${machine.node}) sedang OFFLINE`
-                };
+                return { isUp: false, reason: `Node induk (${machine.node}) sedang OFFLINE` };
             }
 
             const statusLower = String(machine.status || '').toLowerCase();
             const isRunning = ['running', 'online', 'up'].includes(statusLower);
 
             if (!isRunning) {
-                return {
-                    isUp: false,
-                    reason: `Mesin ${pt.type} ${pt.name} (${pt.vmid || '-'}) berstatus ${(machine.status || 'STOPPED').toUpperCase()}`
-                };
+                return { isUp: false, reason: `Mesin ${pt.type} ${pt.name} (${pt.vmid || '-'}) berstatus ${(machine.status || 'STOPPED').toUpperCase()}` };
             }
 
             const cpuPct = Number(((machine.cpu || 0) * 100).toFixed(1));
             const ramPct = Number((machine.maxmem ? (machine.mem / machine.maxmem) * 100 : 0).toFixed(1));
 
-            return {
-                isUp: true,
-                cpu: cpuPct,
-                ram: ramPct,
-                ioDelay: null
-            };
+            return { isUp: true, cpu: cpuPct, ram: ramPct, ioDelay: null };
         }
     }
 
@@ -381,16 +393,14 @@ const fetchLiveProxmoxMetrics = async (pt) => {
 };
 
 // ==========================================
-// CRONJOB PEMBERSIHAN RIWAYAT GRAFIK (TARGET_HISTORY)
+// CRONJOB PEMBERSIHAN RIWAYAT GRAFIK
 // ==========================================
-const HISTORY_CLEANUP_INTERVAL_MS = 15 * 60 * 1000; // Setiap 15 menit
+const HISTORY_CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 const MAX_HISTORY_ROWS_PER_TARGET = 20;
 
 export const cleanupTargetHistory = async () => {
     try {
         let totalDeleted = 0;
-
-        // 1. Bersihkan baris yatim (jika target induknya sudah dihapus)
         const [orphanRes] = await db.query(`
             DELETE th FROM target_history th
             LEFT JOIN monitoring_targets mt ON th.target_id = mt.id
@@ -398,7 +408,6 @@ export const cleanupTargetHistory = async () => {
         `);
         totalDeleted += orphanRes.affectedRows || 0;
 
-        // 2. Untuk setiap target, simpan hanya 20 data terbaru dan hapus sisanya
         const [targets] = await db.query('SELECT id FROM monitoring_targets');
         for (const t of targets) {
             const [delRes] = await db.query(
@@ -417,11 +426,14 @@ export const cleanupTargetHistory = async () => {
             totalDeleted += delRes.affectedRows || 0;
         }
 
-        console.log(`[${getWibTimeStr()}] [CRON CLEANUP] Pembersihan target_history selesai (${totalDeleted} baris lama dihapus, maks ${MAX_HISTORY_ROWS_PER_TARGET} baris/target).`);
+        console.log(`[${getWibTimeStr()}] [CRON CLEANUP] Pembersihan target_history selesai (${totalDeleted} baris dihapus).`);
     } catch (err) {
         console.error('[CRON CLEANUP ERROR] Gagal membersihkan target_history:', err.message);
     }
 };
+
+// Helper Pemecah Array menjadi Batch
+const chunkArray = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size));
 
 // ==========================================
 // FUNGSI UTAMA DAEMON
@@ -433,7 +445,6 @@ export const startMonitoringDaemon = async () => {
     console.log(`[INFO] ${startupMsg}`);
     await addDaemonLog('INFO', startupMsg);
 
-    // Self-healing saat startup: bersihkan last_check yang berada di masa depan akibat perbedaan zona waktu lama
     try {
         await db.query('UPDATE monitoring_targets SET last_check = NULL WHERE last_check > NOW()');
         await db.query('UPDATE proxmox_targets SET last_check = NULL WHERE last_check > NOW()');
@@ -441,11 +452,9 @@ export const startMonitoringDaemon = async () => {
         console.error('[DAEMON INIT] Gagal menormalkan last_check:', e.message);
     }
 
-    // Jalankan pembersihan awal target_history saat startup, lalu jadwalkan cronjob tiap 15 menit
     await cleanupTargetHistory();
     setInterval(cleanupTargetHistory, HISTORY_CLEANUP_INTERVAL_MS);
 
-    // Inisialisasi tabel pengaturan cronjob pembersihan Log Sistem & Riwayat Gangguan, lalu cek jadwal setiap 10 detik
     await ensureCleanupSettingsTable();
     setInterval(executeScheduledCleanupIfDue, 10000);
 
@@ -454,8 +463,17 @@ export const startMonitoringDaemon = async () => {
         isDaemonRunning = true;
 
         try {
+            // BERSIHKAN CACHE PROXMOX EXPIRED
+            const nowMs = Date.now();
+            for (const [key, val] of pxCache.nodeStatus.entries()) {
+                if (nowMs > val.expires) pxCache.nodeStatus.delete(key);
+            }
+            for (const [key, val] of pxCache.clusterResources.entries()) {
+                if (nowMs > val.expires) pxCache.clusterResources.delete(key);
+            }
+
             // =======================================
-            // BAGIAN 1: NETWORK (ICMP PING & TCP SOCKET)
+            // BAGIAN 1: NETWORK (BATCHING)
             // =======================================
             const [targets] = await db.query(
                 `SELECT *, TIMESTAMPDIFF(SECOND, IFNULL(last_check, '1970-01-01 00:00:00'), NOW()) AS elapsed_seconds 
@@ -463,141 +481,112 @@ export const startMonitoringDaemon = async () => {
                  WHERE is_active = 1`
             );
 
-            for (const target of targets) {
-                const interval = Math.max(1, Number(target.check_interval) || 10);
+            const networkBatches = chunkArray(targets, 20); // Eksekusi 20 target sekaligus
 
-                // Eksekusi jika belum pernah dicek, sudah melewati interval, atau jika elapsed_seconds negatif (jam bergeser)
-                if (target.last_check == null || target.elapsed_seconds >= interval || target.elapsed_seconds < 0) {
-                    let result = { isUp: false, latency: null };
-                    if (target.protocol === 'ICMP PING') {
-                        result = await checkIcmp(target.ip_address);
-                    } else if (target.protocol === 'TCP SOCKET') {
-                        result = await checkTcp(target.ip_address, target.port);
-                    }
+            for (const batch of networkBatches) {
+                await Promise.allSettled(batch.map(async (target) => {
+                    const interval = Math.max(1, Number(target.check_interval) || 10);
 
-                    let currentFails = failureCounts.get(target.id) || 0;
-                    let newStatus = target.status;
-                    const limitRTO = Math.max(1, Number(target.max_retries) || 3);
-
-                    if (result.isUp) {
-                        if (target.status === 'DOWN') {
-                            const recMsg = `Koneksi Pulih: ${target.name} kembali ONLINE.`;
-                            console.log(`[INFO] ${recMsg}`);
-                            await addDaemonLog('INFO', recMsg);
+                    if (target.last_check == null || target.elapsed_seconds >= interval || target.elapsed_seconds < 0) {
+                        let result = { isUp: false, latency: null };
+                        if (target.protocol === 'ICMP PING') {
+                            result = await checkIcmp(target.ip_address);
+                        } else if (target.protocol === 'TCP SOCKET') {
+                            result = await checkTcp(target.ip_address, target.port);
                         }
-                        currentFails = 0;
-                        newStatus = 'UP';
 
-                        // Evaluasi Threshold Latency jika fitur notifikasi/alert diaktifkan pada target ini
-                        if (target.is_alert_enabled === 1) {
-                            const latCrit = Number(target.latency_critical);
-                            const latWarn = Number(target.latency_warning);
-                            const warnMax = Math.max(1, Number(target.notify_warning_max) || 1);
-                            const critMax = Math.max(1, Number(target.notify_critical_max) || 1);
+                        let currentFails = failureCounts.get(target.id) || 0;
+                        let newStatus = target.status;
+                        const limitRTO = Math.max(1, Number(target.max_retries) || 3);
 
-                            if (latCrit > 0 && result.latency !== null && result.latency >= latCrit) {
-                                await triggerAlert(
-                                    target,
-                                    'NETWORK',
-                                    'CRITICAL',
-                                    target.notify_critical_type || 'Pesan',
-                                    critMax,
-                                    `Latency Kritis: ${result.latency}ms (Batas: ${latCrit}ms)`
-                                );
-                            } else if (latWarn > 0 && result.latency !== null && result.latency >= latWarn) {
-                                await triggerAlert(
-                                    target,
-                                    'NETWORK',
-                                    'WARNING',
-                                    target.notify_warning_type || 'Pesan',
-                                    warnMax,
-                                    `Latency Tinggi: ${result.latency}ms (Batas: ${latWarn}ms)`
-                                );
-                            } else {
-                                await resolveAlert(target, 'NETWORK');
+                        if (result.isUp) {
+                            if (target.status === 'DOWN') {
+                                const recMsg = `Koneksi Pulih: ${target.name} kembali ONLINE.`;
+                                console.log(`[INFO] ${recMsg}`);
+                                await addDaemonLog('INFO', recMsg);
                             }
-                        }
-                    } else {
-                        currentFails += 1;
-                        if (currentFails >= limitRTO) {
-                            newStatus = 'DOWN';
-                            if (target.status !== 'DOWN') {
-                                const errMsg = `Koneksi Terputus: ${target.name} OFFLINE.`;
-                                console.log(`[ERROR] ${errMsg}`);
-                                await addDaemonLog('ERROR', errMsg);
-                            }
+                            currentFails = 0;
+                            newStatus = 'UP';
 
-                            // Begitu status resmi DOWN (melewati batas toleransi RTO), langsung buat tiket & notifikasi DOWN!
                             if (target.is_alert_enabled === 1) {
-                                await triggerAlert(
-                                    target,
-                                    'NETWORK',
-                                    'DOWN',
-                                    target.notify_down_type || 'Call',
-                                    1,
-                                    `Koneksi Timeout / Terputus (${currentFails}x RTO berturut-turut)`
-                                );
+                                const latCrit = Number(target.latency_critical);
+                                const latWarn = Number(target.latency_warning);
+                                const warnMax = Math.max(1, Number(target.notify_warning_max) || 1);
+                                const critMax = Math.max(1, Number(target.notify_critical_max) || 1);
+
+                                if (latCrit > 0 && result.latency !== null && result.latency >= latCrit) {
+                                    await triggerAlert(
+                                        target, 'NETWORK', 'CRITICAL', target.notify_critical_type || 'Pesan',
+                                        critMax, `Latency Kritis: ${result.latency}ms (Batas: ${latCrit}ms)`
+                                    );
+                                } else if (latWarn > 0 && result.latency !== null && result.latency >= latWarn) {
+                                    await triggerAlert(
+                                        target, 'NETWORK', 'WARNING', target.notify_warning_type || 'Pesan',
+                                        warnMax, `Latency Tinggi: ${result.latency}ms (Batas: ${latWarn}ms)`
+                                    );
+                                } else {
+                                    await resolveAlert(target, 'NETWORK');
+                                }
+                            }
+                        } else {
+                            currentFails += 1;
+                            if (currentFails >= limitRTO) {
+                                newStatus = 'DOWN';
+                                if (target.status !== 'DOWN') {
+                                    const errMsg = `Koneksi Terputus: ${target.name} OFFLINE.`;
+                                    console.log(`[ERROR] ${errMsg}`);
+                                    await addDaemonLog('ERROR', errMsg);
+                                }
+
+                                if (target.is_alert_enabled === 1) {
+                                    await triggerAlert(
+                                        target, 'NETWORK', 'DOWN', target.notify_down_type || 'Call',
+                                        1, `Koneksi Timeout / Terputus (${currentFails}x RTO berturut-turut)`
+                                    );
+                                }
                             }
                         }
-                    }
 
-                    failureCounts.set(target.id, currentFails);
+                        failureCounts.set(target.id, currentFails);
 
-                    // Tampilkan log pengecekan interval ICMP / TCP di terminal
-                    const protoTag = target.protocol === 'ICMP PING' ? 'ICMP' : 'TCP';
-                    const addrStr = target.protocol === 'TCP SOCKET' ? `${target.ip_address}:${target.port}` : target.ip_address;
-                    const resultStr = result.isUp
-                        ? `status=${newStatus} | latency=${result.latency}ms`
-                        : `status=${newStatus} | latency=TIMEOUT (fail=${currentFails}/${limitRTO})`;
-                    logIntervalCheck(
-                        protoTag,
-                        `${target.name} (${addrStr}) | interval=${interval}s | ${resultStr} | alert=${target.is_alert_enabled === 1 ? 'ON' : 'OFF'}`
-                    );
+                        const protoTag = target.protocol === 'ICMP PING' ? 'ICMP' : 'TCP';
+                        const addrStr = target.protocol === 'TCP SOCKET' ? `${target.ip_address}:${target.port}` : target.ip_address;
+                        const resultStr = result.isUp ? `status=${newStatus} | latency=${result.latency}ms` : `status=${newStatus} | latency=TIMEOUT (fail=${currentFails}/${limitRTO})`;
+                        logIntervalCheck(protoTag, `${target.name} (${addrStr}) | interval=${interval}s | ${resultStr} | alert=${target.is_alert_enabled === 1 ? 'ON' : 'OFF'}`);
 
-                    // Simpan ke target_history untuk grafik riwayat latency (maks 50 titik terakhir per target)
-                    try {
-                        await db.query(
-                            'INSERT INTO target_history (target_id, latency_ms, status) VALUES (?, ?, ?)',
-                            [target.id, result.latency, result.isUp ? 'UP' : 'DOWN']
-                        );
-                    } catch (histErr) {
-                        // Abaikan jika tabel target_history gagal ditulis
-                    }
+                        try {
+                            await db.query('INSERT INTO target_history (target_id, latency_ms, status) VALUES (?, ?, ?)', [target.id, result.latency, result.isUp ? 'UP' : 'DOWN']);
+                        } catch (histErr) {}
 
-                    // Update status & rekam down_history jika beralih menjadi DOWN
-                    if (target.status !== newStatus) {
-                        if (newStatus === 'DOWN' && target.status !== 'DOWN') {
-                            if (target.is_alert_enabled === 1) {
+                        if (target.status !== newStatus) {
+                            if (newStatus === 'DOWN' && target.status !== 'DOWN' && target.is_alert_enabled === 1) {
                                 const upSince = target.last_status_change ? new Date(target.last_status_change) : new Date();
                                 const downAt = new Date();
                                 const uptimeSeconds = Math.max(0, Math.floor((downAt - upSince) / 1000));
-                                const reason = result.latency !== null
-                                    ? `Terputus (Last Ping: ${result.latency}ms)`
-                                    : 'Koneksi Timeout / Terputus';
+                                const reason = result.latency !== null ? `Terputus (Last Ping: ${result.latency}ms)` : 'Koneksi Timeout / Terputus';
 
                                 await db.query(
-                                    `INSERT INTO down_history (target_id, target_type, target_name, up_since, down_at, uptime_duration_sec, down_reason) 
-                                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                                    `INSERT INTO down_history (target_id, target_type, target_name, up_since, down_at, uptime_duration_sec, down_reason) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                                     [target.id, 'NETWORK', target.name, upSince, downAt, uptimeSeconds, reason]
-                                ).catch(err => console.error('[HISTORY ERROR] Gagal menyimpan riwayat down:', err));
+                                ).catch(err => console.error('[HISTORY ERROR]', err));
                             }
-                        }
 
-                        await db.query(
-                            'UPDATE monitoring_targets SET status = ?, last_latency = ?, last_check = NOW(), last_status_change = NOW() WHERE id = ?',
-                            [newStatus, result.latency !== null ? `${result.latency} ms` : 'TIMEOUT', target.id]
-                        );
-                    } else {
-                        await db.query(
-                            'UPDATE monitoring_targets SET status = ?, last_latency = ?, last_check = NOW() WHERE id = ?',
-                            [newStatus, result.latency !== null ? `${result.latency} ms` : 'TIMEOUT', target.id]
-                        );
+                            await db.query(
+                                'UPDATE monitoring_targets SET status = ?, last_latency = ?, last_check = NOW(), last_status_change = NOW() WHERE id = ?',
+                                [newStatus, result.latency !== null ? `${result.latency} ms` : 'TIMEOUT', target.id]
+                            );
+                        } else {
+                            await db.query(
+                                'UPDATE monitoring_targets SET status = ?, last_latency = ?, last_check = NOW() WHERE id = ?',
+                                [newStatus, result.latency !== null ? `${result.latency} ms` : 'TIMEOUT', target.id]
+                            );
+                        }
                     }
-                }
+                }));
             }
 
             // =======================================
-            // BAGIAN 2: PROXMOX THRESHOLDS (NODE, VM, LXC)
+            // BAGIAN 2: PROXMOX THRESHOLDS (BATCHING)
             // =======================================
             const [pxTargets] = await db.query(
                 `SELECT *, TIMESTAMPDIFF(SECOND, IFNULL(last_check, '1970-01-01 00:00:00'), NOW()) AS elapsed_seconds 
@@ -605,126 +594,106 @@ export const startMonitoringDaemon = async () => {
                  WHERE is_alert_enabled = 1`
             );
 
-            for (const pt of pxTargets) {
-                const interval = Math.max(1, Number(pt.check_interval) || 10);
+            const pxBatches = chunkArray(pxTargets, 10); // Eksekusi 10 Proxmox target sekaligus
 
-                if (pt.last_check == null || pt.elapsed_seconds >= interval || pt.elapsed_seconds < 0) {
-                    await db.query('UPDATE proxmox_targets SET last_check = NOW() WHERE id = ?', [pt.id]);
+            for (const batch of pxBatches) {
+                await Promise.allSettled(batch.map(async (pt) => {
+                    const interval = Math.max(1, Number(pt.check_interval) || 10);
 
-                    const metrics = await fetchLiveProxmoxMetrics(pt);
-                    const newStatus = metrics.isUp ? 'UP' : 'DOWN';
+                    if (pt.last_check == null || pt.elapsed_seconds >= interval || pt.elapsed_seconds < 0) {
+                        await db.query('UPDATE proxmox_targets SET last_check = NOW() WHERE id = ?', [pt.id]);
 
-                    // Tampilkan log pengecekan interval API Proxmox di terminal
-                    const pxTargetLabel = pt.type === 'NODE'
-                        ? `${pt.name} (node=${pt.node})`
-                        : `${pt.name} (node=${pt.node}, vmid=${pt.vmid})`;
-                    const pxMetricStr = metrics.isUp
-                        ? `status=UP | cpu=${metrics.cpu}% | ram=${metrics.ram}%${pt.type === 'NODE' && metrics.ioDelay !== null ? ` | io=${metrics.ioDelay}%` : ''}`
-                        : `status=DOWN | reason=${metrics.reason || 'Offline'}`;
-                    logIntervalCheck(
-                        `PROXMOX:${pt.type}`,
-                        `${pxTargetLabel} | interval=${interval}s | ${pxMetricStr}`
-                    );
+                        const metrics = await fetchLiveProxmoxMetrics(pt);
+                        const newStatus = metrics.isUp ? 'UP' : 'DOWN';
 
-                    // 1. Logika Alerting & Pembuatan Tiket Otomatis Proxmox
-                    if (!metrics.isUp) {
-                        // Begitu Node/VM/LXC terdeteksi mati/stopped/offline, langsung picu tiket DOWN
-                        await triggerAlert(
-                            pt,
-                            'PROXMOX',
-                            'DOWN',
-                            pt.notify_down_type || 'Call',
-                            1,
-                            metrics.reason || 'Mesin Offline atau tidak merespon'
-                        );
-                    } else {
-                        let highestSeverity = null;
-                        let actionType = 'Pesan';
-                        let msgs = [];
+                        const pxTargetLabel = pt.type === 'NODE' ? `${pt.name} (node=${pt.node})` : `${pt.name} (node=${pt.node}, vmid=${pt.vmid})`;
+                        const pxMetricStr = metrics.isUp ? `status=UP | cpu=${metrics.cpu}% | ram=${metrics.ram}%${pt.type === 'NODE' && metrics.ioDelay !== null ? ` | io=${metrics.ioDelay}%` : ''}` : `status=DOWN | reason=${metrics.reason || 'Offline'}`;
+                        logIntervalCheck(`PROXMOX:${pt.type}`, `${pxTargetLabel} | interval=${interval}s | ${pxMetricStr}`);
 
-                        const cpuWarn = Number(pt.cpu_warning ?? 75);
-                        const cpuCrit = Number(pt.cpu_critical ?? 90);
-                        const ramWarn = Number(pt.ram_warning ?? 80);
-                        const ramCrit = Number(pt.ram_critical ?? 95);
-                        const ioWarn  = Number(pt.io_warning ?? 10);
-                        const ioCrit  = Number(pt.io_critical ?? 20);
+                        if (!metrics.isUp) {
+                            await triggerAlert(pt, 'PROXMOX', 'DOWN', pt.notify_down_type || 'Call', 1, metrics.reason || 'Mesin Offline atau tidak merespon');
+                        } else {
+                            let highestSeverity = null;
+                            let actionType = 'Pesan';
+                            let msgs = [];
 
-                        // Cek CPU
-                        if (metrics.cpu >= cpuCrit) {
-                            highestSeverity = 'CRITICAL';
-                            actionType = pt.notify_critical_type || 'Call';
-                            msgs.push(`CPU Kritis (${metrics.cpu}% >= ${cpuCrit}%)`);
-                        } else if (metrics.cpu >= cpuWarn) {
-                            highestSeverity = 'WARNING';
-                            actionType = pt.notify_warning_type || 'Pesan';
-                            msgs.push(`CPU Tinggi (${metrics.cpu}% >= ${cpuWarn}%)`);
-                        }
+                            const cpuWarn = Number(pt.cpu_warning ?? 75);
+                            const cpuCrit = Number(pt.cpu_critical ?? 90);
+                            const ramWarn = Number(pt.ram_warning ?? 80);
+                            const ramCrit = Number(pt.ram_critical ?? 95);
+                            const ioWarn  = Number(pt.io_warning ?? 10);
+                            const ioCrit  = Number(pt.io_critical ?? 20);
 
-                        // Cek RAM
-                        if (metrics.ram >= ramCrit) {
-                            if (highestSeverity !== 'CRITICAL') {
+                            if (metrics.cpu >= cpuCrit) {
                                 highestSeverity = 'CRITICAL';
                                 actionType = pt.notify_critical_type || 'Call';
-                            }
-                            msgs.push(`RAM Kritis (${metrics.ram}% >= ${ramCrit}%)`);
-                        } else if (metrics.ram >= ramWarn) {
-                            if (!highestSeverity) {
+                                msgs.push(`CPU Kritis (${metrics.cpu}% >= ${cpuCrit}%)`);
+                            } else if (metrics.cpu >= cpuWarn) {
                                 highestSeverity = 'WARNING';
                                 actionType = pt.notify_warning_type || 'Pesan';
+                                msgs.push(`CPU Tinggi (${metrics.cpu}% >= ${cpuWarn}%)`);
                             }
-                            msgs.push(`RAM Tinggi (${metrics.ram}% >= ${ramWarn}%)`);
-                        }
 
-                        // Cek IO Delay (khusus NODE fisik)
-                        if (pt.type === 'NODE' && metrics.ioDelay !== null) {
-                            if (metrics.ioDelay >= ioCrit) {
+                            if (metrics.ram >= ramCrit) {
                                 if (highestSeverity !== 'CRITICAL') {
                                     highestSeverity = 'CRITICAL';
                                     actionType = pt.notify_critical_type || 'Call';
                                 }
-                                msgs.push(`IO Kritis (${metrics.ioDelay}% >= ${ioCrit}%)`);
-                            } else if (metrics.ioDelay >= ioWarn) {
+                                msgs.push(`RAM Kritis (${metrics.ram}% >= ${ramCrit}%)`);
+                            } else if (metrics.ram >= ramWarn) {
                                 if (!highestSeverity) {
                                     highestSeverity = 'WARNING';
                                     actionType = pt.notify_warning_type || 'Pesan';
                                 }
-                                msgs.push(`IO Tinggi (${metrics.ioDelay}% >= ${ioWarn}%)`);
+                                msgs.push(`RAM Tinggi (${metrics.ram}% >= ${ramWarn}%)`);
+                            }
+
+                            if (pt.type === 'NODE' && metrics.ioDelay !== null) {
+                                if (metrics.ioDelay >= ioCrit) {
+                                    if (highestSeverity !== 'CRITICAL') {
+                                        highestSeverity = 'CRITICAL';
+                                        actionType = pt.notify_critical_type || 'Call';
+                                    }
+                                    msgs.push(`IO Kritis (${metrics.ioDelay}% >= ${ioCrit}%)`);
+                                } else if (metrics.ioDelay >= ioWarn) {
+                                    if (!highestSeverity) {
+                                        highestSeverity = 'WARNING';
+                                        actionType = pt.notify_warning_type || 'Pesan';
+                                    }
+                                    msgs.push(`IO Tinggi (${metrics.ioDelay}% >= ${ioWarn}%)`);
+                                }
+                            }
+
+                            if (highestSeverity) {
+                                await triggerAlert(pt, 'PROXMOX', highestSeverity, actionType, 1, msgs.join(' | '));
+                            } else {
+                                await resolveAlert(pt, 'PROXMOX');
                             }
                         }
 
-                        if (highestSeverity) {
-                            await triggerAlert(pt, 'PROXMOX', highestSeverity, actionType, 1, msgs.join(' | '));
-                        } else {
-                            await resolveAlert(pt, 'PROXMOX');
+                        if (pt.status !== newStatus) {
+                            if (newStatus === 'DOWN' && pt.status !== 'DOWN') {
+                                const upSince = pt.last_status_change ? new Date(pt.last_status_change) : new Date();
+                                const downAt = new Date();
+                                const uptimeSeconds = Math.max(0, Math.floor((downAt - upSince) / 1000));
+                                const targetName = `${pt.name || pt.node}${pt.vmid ? ` (VMID: ${pt.vmid})` : ' (Node Utama)'}`;
+
+                                await db.query(
+                                    `INSERT INTO down_history (target_id, target_type, target_name, up_since, down_at, uptime_duration_sec, down_reason) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                                    [pt.id, 'PROXMOX', targetName, upSince, downAt, uptimeSeconds, metrics.reason || 'Mesin Proxmox Offline / Tidak merespon API']
+                                ).catch(err => console.error('[HISTORY ERROR]', err));
+                            } else if (pt.status === 'DOWN' && newStatus === 'UP') {
+                                const recMsg = `Mesin Pulih: [PROXMOX] ${pt.name || pt.node} kembali ONLINE.`;
+                                console.log(`[INFO] ${recMsg}`);
+                                await addDaemonLog('INFO', recMsg);
+                            }
+
+                            await db.query('UPDATE proxmox_targets SET status = ?, last_status_change = NOW() WHERE id = ?', [newStatus, pt.id]);
                         }
                     }
-
-                    // 2. Logika Perubahan Status & Perekaman History Uptime Proxmox
-                    if (pt.status !== newStatus) {
-                        if (newStatus === 'DOWN' && pt.status !== 'DOWN') {
-                            const upSince = pt.last_status_change ? new Date(pt.last_status_change) : new Date();
-                            const downAt = new Date();
-                            const uptimeSeconds = Math.max(0, Math.floor((downAt - upSince) / 1000));
-                            const targetName = `${pt.name || pt.node}${pt.vmid ? ` (VMID: ${pt.vmid})` : ' (Node Utama)'}`;
-
-                            await db.query(
-                                `INSERT INTO down_history (target_id, target_type, target_name, up_since, down_at, uptime_duration_sec, down_reason) 
-                                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                                [pt.id, 'PROXMOX', targetName, upSince, downAt, uptimeSeconds, metrics.reason || 'Mesin Proxmox Offline / Tidak merespon API']
-                            ).catch(err => console.error('[HISTORY ERROR] Gagal menyimpan riwayat down Proxmox:', err));
-                        } else if (pt.status === 'DOWN' && newStatus === 'UP') {
-                            const recMsg = `Mesin Pulih: [PROXMOX] ${pt.name || pt.node} kembali ONLINE.`;
-                            console.log(`[INFO] ${recMsg}`);
-                            await addDaemonLog('INFO', recMsg);
-                        }
-
-                        await db.query(
-                            'UPDATE proxmox_targets SET status = ?, last_status_change = NOW() WHERE id = ?',
-                            [newStatus, pt.id]
-                        );
-                    }
-                }
+                }));
             }
+
         } catch (error) {
             console.error(`[ERROR] Daemon Master Loop Error: ${error.message}`);
         } finally {

@@ -79,43 +79,57 @@ export const performCleanupByKey = async (settingKey, retentionMode, intervalSec
             `[${getWibTimeStr()}] [CRON CLEANUP LOG] (${sourceLabel}) Pembersihan system_logs selesai: ${deletedCount} baris dihapus (mode=${retentionMode}).`
         );
     } else if (settingKey === 'incident_history') {
-        if (retentionMode === 'ALL') {
-            // Hapus handler untuk tiket yang sudah selesai
-            await db.query(`
-                DELETE ah FROM alert_handlers ah
-                INNER JOIN active_alerts aa ON ah.alert_id = aa.id
-                WHERE aa.is_resolved = 1
-            `);
-            const [resAlerts] = await db.query('DELETE FROM active_alerts WHERE is_resolved = 1');
-            await db.query('DELETE FROM down_history');
-            deletedCount = resAlerts.affectedRows || 0;
-        } else {
-            await db.query(
-                `DELETE ah FROM alert_handlers ah
-                 INNER JOIN active_alerts aa ON ah.alert_id = aa.id
-                 WHERE aa.is_resolved = 1
-                   AND IFNULL(aa.resolved_at, aa.created_at) < DATE_SUB(NOW(), INTERVAL ? SECOND)`,
-                [intervalSec]
-            );
-            const [resAlerts] = await db.query(
-                `DELETE FROM active_alerts
-                 WHERE is_resolved = 1
-                   AND IFNULL(resolved_at, created_at) < DATE_SUB(NOW(), INTERVAL ? SECOND)`,
-                [intervalSec]
-            );
-            await db.query(
-                'DELETE FROM down_history WHERE down_at < DATE_SUB(NOW(), INTERVAL ? SECOND)',
-                [intervalSec]
-            );
-            deletedCount = resAlerts.affectedRows || 0;
-        }
+        // MENGGUNAKAN TRANSAKSI ACID UNTUK MULTI-TABLE DELETE
+        const conn = await db.getConnection();
+        await conn.beginTransaction(); 
+        
+        try {
+            if (retentionMode === 'ALL') {
+                // Hapus handler untuk tiket yang sudah selesai
+                await conn.query(`
+                    DELETE ah FROM alert_handlers ah
+                    INNER JOIN active_alerts aa ON ah.alert_id = aa.id
+                    WHERE aa.is_resolved = 1
+                `);
+                const [resAlerts] = await conn.query('DELETE FROM active_alerts WHERE is_resolved = 1');
+                await conn.query('DELETE FROM down_history');
+                deletedCount = resAlerts.affectedRows || 0;
+            } else {
+                await conn.query(
+                    `DELETE ah FROM alert_handlers ah
+                     INNER JOIN active_alerts aa ON ah.alert_id = aa.id
+                     WHERE aa.is_resolved = 1
+                       AND IFNULL(aa.resolved_at, aa.created_at) < DATE_SUB(NOW(), INTERVAL ? SECOND)`,
+                    [intervalSec]
+                );
+                const [resAlerts] = await conn.query(
+                    `DELETE FROM active_alerts
+                     WHERE is_resolved = 1
+                       AND IFNULL(resolved_at, created_at) < DATE_SUB(NOW(), INTERVAL ? SECOND)`,
+                    [intervalSec]
+                );
+                await conn.query(
+                    'DELETE FROM down_history WHERE down_at < DATE_SUB(NOW(), INTERVAL ? SECOND)',
+                    [intervalSec]
+                );
+                deletedCount = resAlerts.affectedRows || 0;
+            }
 
-        // Bersihkan baris handler yatim jika ada
-        await db.query(`
-            DELETE ah FROM alert_handlers ah
-            LEFT JOIN active_alerts aa ON ah.alert_id = aa.id
-            WHERE aa.id IS NULL
-        `);
+            // Bersihkan baris handler yatim jika ada
+            await conn.query(`
+                DELETE ah FROM alert_handlers ah
+                LEFT JOIN active_alerts aa ON ah.alert_id = aa.id
+                WHERE aa.id IS NULL
+            `);
+
+            await conn.commit(); // Eksekusi permanen penghapusan jika tidak ada error
+        } catch (err) {
+            await conn.rollback(); // Batalkan semua penghapusan jika ada satu kueri yang gagal
+            console.error('[CRON CLEANUP ERROR] Transaksi pembersihan riwayat dibatalkan:', err.message);
+            throw err;
+        } finally {
+            conn.release(); // Kembalikan koneksi ke pool
+        }
 
         await db.query(
             'UPDATE cleanup_settings SET last_run = NOW(), last_deleted_count = ? WHERE setting_key = ?',

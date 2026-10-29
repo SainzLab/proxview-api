@@ -6,6 +6,22 @@ import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
+// === TAMBAHKAN INISIALISASI FIREBASE ADMIN ===
+import admin from 'firebase-admin';
+
+// Pastikan file serviceAccountKey.json sudah Anda letakkan di root folder backend
+try {
+    const serviceAccountPath = new URL('./serviceAccountKey.json', import.meta.url);
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('[INFO] Firebase Admin SDK berhasil diinisialisasi.');
+} catch (error) {
+    console.error('[CRITICAL ERROR] Gagal menginisialisasi Firebase Admin. Pastikan file serviceAccountKey.json tersedia.', error.message);
+}
+// =============================================
+
 import { login, logout, mobileLogin } from './controllers/authController.js';
 import { getUsers, createUser, updateUser, deleteUser, getToken, resetToken, toggleUserStatus } from './controllers/userController.js';
 import { getTargets, createTarget, updateTarget, deleteTarget, toggleTargetStatus, getTargetHistory, getSystemStatus } from './controllers/targetController.js';
@@ -22,39 +38,35 @@ import { getDashboardSummary } from './controllers/dashboardController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === 'production';
 
 // Helper pembaca manifest hasil build Vite untuk mode Production / Staging
 const resolveViteManifestAssets = () => {
-  try {
-    const manifestPath = path.join(process.cwd(), 'public', 'dist', '.vite', 'manifest.json');
-    if (!fs.existsSync(manifestPath)) return null;
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    const entry = manifest['src/frontend/main.js'];
-    if (!entry) return null;
-    return {
-      js: entry.file || null,
-      css: Array.isArray(entry.css) ? entry.css : []
-    };
-  } catch (err) {
-    console.error('[MANIFEST ERROR] Gagal membaca manifest Vite:', err.message);
-    return null;
-  }
+    try {
+        const manifestPath = path.join(process.cwd(), 'public', 'dist', '.vite', 'manifest.json');
+        if (!fs.existsSync(manifestPath)) return null;
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        const entry = manifest['src/frontend/main.js'];
+        if (!entry) return null;
+        return { js: entry.file || null, css: Array.isArray(entry.css) ? entry.css : [] };
+    } catch (err) {
+        console.error('[MANIFEST ERROR] Gagal membaca manifest Vite:', err.message);
+        return null;
+    }
 };
 
 // Middleware CORS, Parsing & Cookie
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json()); 
+app.use(express.json());
 app.use(cookieParser());
 
 // Konfigurasi EJS
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Static files (mendukung /dist/assets/... dan fallback /assets/... untuk dynamic chunk Vite)
+// Static files
 app.use(express.static(path.join(process.cwd(), 'public')));
 app.use('/assets', express.static(path.join(process.cwd(), 'public', 'dist', 'assets')));
 
@@ -62,7 +74,7 @@ app.use('/assets', express.static(path.join(process.cwd(), 'public', 'dist', 'as
 app.post('/api/auth/login', login);
 app.post('/api/auth/logout', attachWebUserIfPresent, logout);
 app.get('/api/auth/me', verifyWebAuth, (req, res) => {
-  res.json({ success: true, data: req.user });
+    res.json({ success: true, data: req.user });
 });
 
 // Route Users (Khusus Admin)
@@ -70,7 +82,7 @@ app.get('/api/users', verifyWebAuth, requireAdmin, getUsers);
 app.post('/api/users', verifyWebAuth, requireAdmin, createUser);
 app.put('/api/users/:id', verifyWebAuth, requireAdmin, updateUser);
 app.delete('/api/users/:id', verifyWebAuth, requireAdmin, deleteUser);
-app.get('/api/users/:id/token', verifyWebAuth, requireAdmin, getToken);          
+app.get('/api/users/:id/token', verifyWebAuth, requireAdmin, getToken);
 app.post('/api/users/:id/token/reset', verifyWebAuth, requireAdmin, resetToken);
 app.put('/api/users/:id/toggle-status', verifyWebAuth, requireAdmin, toggleUserStatus);
 
@@ -116,12 +128,11 @@ app.post('/api/settings/cleanup/run', verifyWebAuth, requireAdmin, runManualClea
 app.get('/api/thresholds/network/catalog', verifyWebAuth, getNetworkCatalog);
 app.get('/api/thresholds/network', verifyWebAuth, getNetworkThresholds);
 app.put('/api/thresholds/network', verifyWebAuth, requireAdmin, saveNetworkThresholds);
-
 app.get('/api/thresholds/proxmox/catalog', verifyWebAuth, getProxmoxCatalog);
 app.get('/api/thresholds/proxmox', verifyWebAuth, getProxmoxThresholds);
 app.put('/api/thresholds/proxmox', verifyWebAuth, requireAdmin, saveProxmoxThresholds);
 
-// Route Insiden & Analitik SLA (Mendukung Web Cookie maupun Bearer Token Mobile via attachMobileUserIfPresent)
+// Route Insiden & Analitik SLA (Mendukung Web Cookie maupun Bearer Token Mobile)
 app.get('/api/incidents', attachMobileUserIfPresent, getIncidents);
 app.get('/api/incidents/stats', attachMobileUserIfPresent, getIncidentStats);
 app.get('/api/analytics', attachMobileUserIfPresent, getAnalytics);
@@ -133,7 +144,7 @@ app.post('/api/incidents/resolve', attachMobileUserIfPresent, resolveIncident);
 // ==========================================
 app.post('/api/mobile/v1/auth/login', mobileLogin);
 app.get('/api/mobile/v1/auth/me', verifyApiToken, (req, res) => {
-  res.json({ success: true, data: req.user });
+    res.json({ success: true, data: req.user });
 });
 app.get('/api/mobile/v1/system/status', verifyApiToken, getSystemStatus);
 app.get('/api/mobile/v1/dashboard', verifyApiToken, getDashboardSummary);
@@ -158,11 +169,11 @@ app.get('/api/mobile/v1/logs/system', verifyApiToken, getSystemLogs);
 
 // Route Utama SPA
 app.get(/^(?!\/api).*/, (req, res) => {
-  const viteAssets = isProd ? resolveViteManifestAssets() : null;
-  res.render('index', { isProd, viteAssets });
+    const viteAssets = isProd ? resolveViteManifestAssets() : null;
+    res.render('index', { isProd, viteAssets });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server berjalan di http://localhost:${PORT}`);
-  startMonitoringDaemon();
+    console.log(`Server berjalan di http://localhost:${PORT}`);
+    startMonitoringDaemon();
 });

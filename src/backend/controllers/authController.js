@@ -122,8 +122,8 @@ export const logout = async (req, res) => {
 // 3. LOGIN KHUSUS MOBILE APP (3-Factor)
 // ==========================================
 export const mobileLogin = async (req, res) => {
-    // Menangkap 3 parameter dari body request Flutter
-    const { username, password, token } = req.body;
+    // Menangkap 4 parameter dari body request Flutter (fcm_token ditambahkan)
+    const { username, password, token, fcm_token } = req.body;
     const clientInfo = getClientInfo(req); // Ambil info IP dan Device Flutter
 
     if (!username || !password || !token) {
@@ -184,10 +184,15 @@ export const mobileLogin = async (req, res) => {
             }
         }
 
+        // 5. UPDATE FCM TOKEN (Fitur Push Notification CallKit)
+        if (fcm_token) {
+            await db.query('UPDATE users SET fcm_token = ? WHERE id = ?', [fcm_token, user.id]);
+        }
+
         // CATAT LOG LOGIN BERHASIL
         await addSystemLog('INFO', 'MOBILE_AUTH', `Login Mobile berhasil: Pengguna '${username}' masuk ke sistem. ${clientInfo}`);
 
-        // 5. Kembalikan Response Sukses ke Flutter
+        // 6. Kembalikan Response Sukses ke Flutter
         res.json({
             success: true,
             message: 'Otentikasi berhasil. Perangkat terhubung.',

@@ -27,7 +27,6 @@ const formatSec = (totalSeconds) => {
 // ==========================================
 export const getIncidents = async (req, res) => {
     try {
-        // Hitung durasi detik langsung di dalam MySQL (TIMESTAMPDIFF).
         const [rows] = await db.query(`
             SELECT 
                 a.id, a.target_type, a.target_name, a.severity, a.original_severity, a.message, 
@@ -120,15 +119,16 @@ export const getIncidentStats = async (req, res) => {
 // ==========================================
 export const joinIncident = async (req, res) => {
     const alert_id = req.body.alert_id || req.body.id;
-    const user_id = req.body.user_id || req.user?.id;
-    const user_name = req.body.user_name || req.user?.name || req.user?.username;
+    // PENCEGAHAN SPOOFING: Hanya gunakan identitas dari token sesi (req.user)
+    const user_id = req.user?.id;
+    const user_name = req.user?.name || req.user?.username;
 
     if (!alert_id || !user_id || !user_name) {
-        return res.status(400).json({ success: false, message: 'Parameter alert_id serta identitas teknisi (user_id, user_name atau Bearer Token) wajib disertakan.' });
+        return res.status(400).json({ success: false, message: 'Parameter alert_id atau identitas sesi teknisi (Bearer Token) tidak valid.' });
     }
 
     try {
-        // BLOKIR KEPALA BIDANG: Validasi role langsung dari database
+        // BLOKIR KEPALA BIDANG
         const [userRows] = await db.query('SELECT role FROM users WHERE id = ?', [user_id]);
         if (userRows.length > 0 && userRows[0].role === 'Kepala Bidang') {
             return res.status(403).json({ 
@@ -167,23 +167,22 @@ export const joinIncident = async (req, res) => {
 // ==========================================
 export const resolveIncident = async (req, res) => {
     const alert_id = req.body.alert_id || req.body.id;
-    const user_id = req.user?.id || req.body.user_id; 
-    const user_name = req.body.user_name || req.user?.name || req.user?.username || 'Teknisi';
+    // PENCEGAHAN SPOOFING: Hanya gunakan identitas dari token sesi
+    const user_id = req.user?.id; 
+    const user_name = req.user?.name || req.user?.username || 'Teknisi';
 
-    if (!alert_id) {
-        return res.status(400).json({ success: false, message: 'Parameter alert_id wajib disertakan.' });
+    if (!alert_id || !user_id) {
+        return res.status(400).json({ success: false, message: 'Parameter alert_id atau identitas sesi tidak valid.' });
     }
 
     try {
-        // BLOKIR KEPALA BIDANG: Cegah penyelesaian tiket oleh manajemen
-        if (user_id) {
-            const [userRows] = await db.query('SELECT role FROM users WHERE id = ?', [user_id]);
-            if (userRows.length > 0 && userRows[0].role === 'Kepala Bidang') {
-                return res.status(403).json({ 
-                    success: false, 
-                    message: 'Akses Ditolak: Kepala Bidang tidak memiliki wewenang untuk menutup tiket perbaikan.' 
-                });
-            }
+        // BLOKIR KEPALA BIDANG
+        const [userRows] = await db.query('SELECT role FROM users WHERE id = ?', [user_id]);
+        if (userRows.length > 0 && userRows[0].role === 'Kepala Bidang') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Akses Ditolak: Kepala Bidang tidak memiliki wewenang untuk menutup tiket perbaikan.' 
+            });
         }
 
         const [alertData] = await db.query('SELECT severity, is_resolved FROM active_alerts WHERE id = ?', [alert_id]);
@@ -220,25 +219,15 @@ const PERIODS = {
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
 const hitungMetrikITIL = (incidents, winStart, winEnd) => {
-    // 1. Saring dan potong durasi insiden agar pas di dalam jendela pencarian
     const overlapped = incidents
         .map(i => ({ sec: Math.max(0, (Math.min(i.end, winEnd) - Math.max(i.start, winStart)) / 1000) }))
         .filter(i => i.sec > 0);
 
-    // 2. Total Waktu Periode = Durasi jendela waktu (dalam detik)
     const totalPeriodSec = Math.max(1, Math.round((winEnd - winStart) / 1000));
-
-    // 3. Total Downtime = SUM durasi downtime dari active_alerts (dibatasi max total_period_sec)
     const totalDowntimeSec = Math.min(totalPeriodSec, Math.round(overlapped.reduce((sum, i) => sum + i.sec, 0)));
-
-    // 4. Total Uptime = total_period_sec - total_downtime_sec
     const totalUptimeSec = totalPeriodSec - totalDowntimeSec;
     const incidentCount = overlapped.length;
-
-    // 5. MTTR = round(total_downtime_sec / incident_count) (aman terhadap division by zero)
     const mttrSec = incidentCount > 0 ? Math.round(totalDowntimeSec / incidentCount) : 0;
-
-    // 6. Availability = ((total_uptime_sec / total_period_sec) * 100).toFixed(2)
     const availability = ((totalUptimeSec / totalPeriodSec) * 100).toFixed(2);
 
     return {
@@ -263,14 +252,10 @@ export const getAnalytics = async (req, res) => {
         const winEnd = Date.now();
         const winStart = winEnd - period.ms;
 
-        // Batasi titik awal jendela dengan waktu data pertama di active_alerts
-        // agar opsi 7d/30d hanya menampilkan hari-hari sejak sistem mulai memiliki riwayat
         const [[firstRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM active_alerts');
         const firstDataMs = firstRow && firstRow.first_at ? new Date(firstRow.first_at).getTime() : winEnd;
         const effectiveStart = Math.min(winEnd, Math.max(winStart, firstDataMs));
 
-        // Ambil riwayat durasi gangguan dari active_alerts di dalam jendela waktu
-        // Gunakan IFNULL(original_severity, severity) karena tiket yang diselesaikan teknisi memiliki severity = 'RECOVERED'
         let query = `
             SELECT created_at, resolved_at 
             FROM active_alerts 
@@ -297,7 +282,6 @@ export const getAnalytics = async (req, res) => {
         };
 
         const chartData = [];
-        // Batas jam/hari bucket mengikuti WIB (server berjalan UTC, WIB = UTC+7 tanpa DST)
         const stepMs = period.bucket === 'hour' ? 3600 * 1000 : 24 * 3600 * 1000;
         let cursorMs = Math.floor((effectiveStart + WIB_OFFSET_MS) / stepMs) * stepMs - WIB_OFFSET_MS;
 
@@ -306,7 +290,6 @@ export const getAnalytics = async (req, res) => {
             const nextMs = cursorMs + stepMs;
             const be = Math.min(nextMs, winEnd);
 
-            // Geser +7 jam lalu baca komponen UTC = komponen waktu WIB
             const wib = new Date(cursorMs + WIB_OFFSET_MS);
             const label = period.bucket === 'hour'
                 ? `${String(wib.getUTCHours()).padStart(2, '0')}:00`
