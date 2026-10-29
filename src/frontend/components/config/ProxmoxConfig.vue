@@ -280,7 +280,7 @@
                     type="text" 
                     v-model="form.tokenId" 
                     required 
-                    placeholder="root@pam!moxview" 
+                    placeholder="root@pam!appmonitor" 
                     class="w-full bg-white border border-slate-200 text-slate-900 text-sm font-mono tracking-tight font-bold rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] placeholder:text-slate-400 placeholder:font-sans placeholder:font-medium"
                   >
                 </div>
