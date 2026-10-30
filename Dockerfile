@@ -1,6 +1,4 @@
-# ─────────────────────────────────────────
-# Stage 1 – Build frontend (Vite)
-# ─────────────────────────────────────────
+# ------------------------------------
 FROM node:22-alpine AS builder
 
 WORKDIR /app
@@ -13,9 +11,9 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ─────────────────────────────────────────
-# Stage 2 – Production image
-# ─────────────────────────────────────────
+# ------------------------------------
+# Stage 2 - Production image
+# ------------------------------------
 FROM node:22-alpine AS production
 
 # iputils-ping diperlukan oleh package "ping"
