@@ -208,8 +208,9 @@ export const resolveIncident = async (req, res) => {
 };
 
 // ==========================================
-// 4. ANALITIK KINERJA SISTEM (MURNI ITIL SLA)
+// 4. ANALITIK KINERJA SISTEM
 // ==========================================
+
 const PERIODS = {
     '24h': { ms: 24 * 3600 * 1000, bucket: 'hour' },
     '7d':  { ms: 7 * 24 * 3600 * 1000, bucket: 'day' },

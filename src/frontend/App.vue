@@ -100,7 +100,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-
 import Sidebar from '@/components/layout/Sidebar.vue';
 import Navbar from '@/components/layout/Navbar.vue';
 import ToastNotification from '@/components/common/ToastNotification.vue';
@@ -121,96 +120,109 @@ const userRole = ref('');
 // FITUR AUTO-LOGOUT (INACTIVITY TIMEOUT)
 // ==========================================
 let timeoutTimer = null;
-const INACTIVITY_LIMIT = 60 * 1000; // 1 menit
+const INACTIVITY_LIMIT = 1160 * 1000; // 1 menit
 const showTimeoutModal = ref(false);
-let isAutoLogout = false; // Flag untuk membedakan auto-logout dan manual logout
+let isAutoLogout = false;
 
 const executeAutoLogout = () => {
-  if (route.name !== 'login' && !showTimeoutModal.value) {
-    showTimeoutModal.value = true;
-    removeActivityListeners();
-  }
+    if (route.name !== 'login' && !showTimeoutModal.value) {
+        showTimeoutModal.value = true;
+        removeActivityListeners();
+    }
 };
 
 const confirmTimeout = () => {
-  isAutoLogout = true; // Tandai bahwa ini adalah proses auto-logout
-  showTimeoutModal.value = false;
-  localStorage.removeItem('isLoggedIn');
-  localStorage.removeItem('userData');
-  router.push('/login');
+    isAutoLogout = true; 
+    showTimeoutModal.value = false;
+    
+    // Bersihkan sesi dan riwayat aktivitas
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('lastActivity');
+    
+    // (Opsional) Tembak API backend untuk mematikan cookie jika menggunakan httpOnly cookie
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    
+    router.push('/login');
 };
 
-const resetTimer = () => {
-  if (timeoutTimer) clearTimeout(timeoutTimer);
-  if (route.name !== 'login' && !showTimeoutModal.value) {
+// Fungsi gabungan: Catat waktu permanen + Reset timer lokal
+const updateActivityAndResetTimer = () => {
+    if (route.name === 'login' || showTimeoutModal.value) return;
+
+    // Catat stempel waktu ke penyimpanan permanen
+    localStorage.setItem('lastActivity', Date.now().toString());
+
+    if (timeoutTimer) clearTimeout(timeoutTimer);
     timeoutTimer = setTimeout(executeAutoLogout, INACTIVITY_LIMIT);
-  }
+};
+
+// Pengecekan saat halaman dimuat/refresh (mencegah bypass Ctrl+R)
+const checkInitialIdleState = () => {
+    if (route.name === 'login') return;
+    
+    const lastActivity = localStorage.getItem('lastActivity');
+    if (lastActivity && (Date.now() - parseInt(lastActivity)) > INACTIVITY_LIMIT) {
+        executeAutoLogout();
+    }
 };
 
 const setupActivityListeners = () => {
-  window.addEventListener('mousemove', resetTimer);
-  window.addEventListener('mousedown', resetTimer);
-  window.addEventListener('keydown', resetTimer);
-  window.addEventListener('scroll', resetTimer);
-  window.addEventListener('touchstart', resetTimer);
+    window.addEventListener('mousemove', updateActivityAndResetTimer);
+    window.addEventListener('mousedown', updateActivityAndResetTimer);
+    window.addEventListener('keydown', updateActivityAndResetTimer);
+    window.addEventListener('scroll', updateActivityAndResetTimer);
+    window.addEventListener('touchstart', updateActivityAndResetTimer);
 };
 
 const removeActivityListeners = () => {
-  window.removeEventListener('mousemove', resetTimer);
-  window.removeEventListener('mousedown', resetTimer);
-  window.removeEventListener('keydown', resetTimer);
-  window.removeEventListener('scroll', resetTimer);
-  window.removeEventListener('touchstart', resetTimer);
+    window.removeEventListener('mousemove', updateActivityAndResetTimer);
+    window.removeEventListener('mousedown', updateActivityAndResetTimer);
+    window.removeEventListener('keydown', updateActivityAndResetTimer);
+    window.removeEventListener('scroll', updateActivityAndResetTimer);
+    window.removeEventListener('touchstart', updateActivityAndResetTimer);
 };
 
 onMounted(() => {
-  setupActivityListeners();
-  resetTimer();
+    checkInitialIdleState();
+    setupActivityListeners();
+    updateActivityAndResetTimer();
 });
 
 onUnmounted(() => {
-  removeActivityListeners();
-  if (timeoutTimer) clearTimeout(timeoutTimer);
+    removeActivityListeners();
+    if (timeoutTimer) clearTimeout(timeoutTimer);
 });
 
 // Reactivity pada perubahan router
 watch(() => route.name, (newName, oldName) => {
-  if (newName === 'login') {
-    if (timeoutTimer) clearTimeout(timeoutTimer);
-    removeActivityListeners();
-
-    // Trigger Notifikasi Logout Berhasil (Manual Logout)
-    if (oldName && oldName !== 'login') {
-      if (isAutoLogout) {
-        // Jika auto-logout, jangan tampilkan toast, reset flag-nya saja
-        isAutoLogout = false;
-      } else {
-        // Jika manual logout, tampilkan toast
-        showLogoutToast.value = true;
-        setTimeout(() => {
-          showLogoutToast.value = false;
-        }, 5000);
-      }
-    }
-
-  } else {
-    setupActivityListeners();
-    resetTimer();
-
-    // Trigger Notifikasi Login Berhasil
-    if (oldName === 'login') {
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      if (userData.name) {
-        userName.value = userData.name;
-        userRole.value = userData.role;
-        showSuccessToast.value = true;
+    if (newName === 'login') {
+        if (timeoutTimer) clearTimeout(timeoutTimer);
+        removeActivityListeners();
         
-        setTimeout(() => {
-          showSuccessToast.value = false;
-        }, 5000);
-      }
+        if (oldName && oldName !== 'login') {
+            if (isAutoLogout) {
+                isAutoLogout = false;
+            } else {
+                showLogoutToast.value = true;
+                setTimeout(() => { showLogoutToast.value = false; }, 5000);
+            }
+        }
+    } else {
+        checkInitialIdleState();
+        setupActivityListeners();
+        updateActivityAndResetTimer();
+
+        if (oldName === 'login') {
+            const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+            if (userData.name) {
+                userName.value = userData.name;
+                userRole.value = userData.role;
+                showSuccessToast.value = true;
+                setTimeout(() => { showSuccessToast.value = false; }, 5000);
+            }
+        }
     }
-  }
 });
 </script>
 

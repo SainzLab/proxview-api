@@ -175,6 +175,6 @@ app.get(/^(?!\/api).*/, (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server berjalan di http://localhost:${PORT}`);
+    console.log(`Server berjalan di http://0.0.0.0:${PORT}`);
     startMonitoringDaemon();
 });

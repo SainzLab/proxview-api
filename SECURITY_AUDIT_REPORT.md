@@ -387,9 +387,4 @@ Perbaikan untuk Fase 1: Perbaikan Darurat (Immediate Action) sesuai SECURITY_AUD
 
 
 NOTE BUG
--Tutup Sesi jika tidak ada interkasi selama 1 menti bug pop up timeout muncul tapi ketika klik refresh tidak logout padahal tidak ada interkasi lebih dari 1 menit
--Sistem Matrix tidak langsung berjalan (berjalan setelah trigger ada 1 gangguan)
--salin token pada manajemen user tidak jalan
--saat baru buka browser sesi udh habis tapi masih nyangkut dalam kondisi sistem tidak menampilkan data
--bug ui pada log task proxmox (ukuran tabel/kolom tidak konsisten)
--pada rekap gangguan perhatikan detail ui yg menginformasikan downtime, critical dan warning
+-

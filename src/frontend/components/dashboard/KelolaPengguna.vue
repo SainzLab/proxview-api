@@ -529,14 +529,42 @@ const closeTokenModal = () => {
   activeTokenUser.value = null;
 };
 
-const copyToken = async () => {
-  if(!apiTokenString.value || apiTokenString.value.includes('belum dibuat')) return;
-  try {
-    await navigator.clipboard.writeText(apiTokenString.value);
-    showToast('success', 'Berhasil Disalin', 'Token API telah disalin ke clipboard Anda.');
-  } catch (err) {
-    showToast('error', 'Gagal', 'Sistem tidak dapat menyalin token secara otomatis.');
-  }
+const copyToken = async (tokenString) => {
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(tokenString);
+            showToast('success', 'Berhasil', 'Token telah disalin ke clipboard.');
+            return;
+        } catch (err) {
+            console.error('Gagal menyalin', err);
+        }
+    }
+
+    try {
+        const textArea = document.createElement("textarea");
+        textArea.value = tokenString;
+        
+        textArea.style.position = "fixed";
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.opacity = "0";
+        
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+            showToast('success', 'Berhasil', 'Token telah disalin.');
+        } else {
+            throw new Error('Gagal menyalin');
+        }
+    } catch (err) {
+        console.error('Gagal menyalin', err);
+        showToast('error', 'Gagal', 'Sistem tidak dapat menyalin token secara otomatis.');
+    }
 };
 
 const confirmResetToken = () => { showConfirmResetTokenModal.value = true; };

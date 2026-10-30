@@ -70,7 +70,7 @@
               <th class="px-6 py-3.5 w-24">Node</th>
               <th class="px-6 py-3.5 w-32">User name</th>
               <th class="px-6 py-3.5">Deskripsi (Action)</th>
-              <th class="px-6 py-3.5 w-32">Status</th>
+              <th class="px-6 py-3.5">Status</th>
             </tr>
           </thead>
           <tbody class="text-sm">
@@ -102,12 +102,13 @@
                 <td class="px-6 py-3.5 text-slate-900 font-bold font-mono tracking-tight text-xs">{{ log.node }}</td>
                 <td class="px-6 py-3.5 text-slate-600 font-medium text-xs">{{ log.user }}</td>
                 <td class="px-6 py-3.5 text-slate-800 text-xs font-semibold">{{ log.description }}</td>
-                <td class="px-6 py-3.5 flex items-center justify-between">
-                  <span v-if="log.status === 'OK'" class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-emerald-200/60">OK</span>
-                  <span v-else-if="log.status === 'RUNNING'" class="text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-cyan-200/60 animate-pulse">RUNNING</span>
-                  <span v-else class="text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-rose-200/60">{{ log.status }}</span>
-                  
-                  <i class="ph-bold ph-caret-right text-slate-400 group-hover:text-emerald-500 transition transform group-hover:translate-x-1"></i>
+                <td class="px-6 py-3.5 flex items-center justify-between min-w-0 gap-4">
+                    <div class="truncate">
+                        <span v-if="log.status === 'OK'" class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-emerald-200/60">OK</span>
+                        <span v-else-if="log.status === 'RUNNING'" class="text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-cyan-200/60 animate-pulse">RUNNING</span>
+                        <span v-else class="text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-rose-200/60 truncate inline-block max-w-[300px] align-bottom" title="Klik untuk melihat detail error penuh">{{ log.status }}</span>
+                    </div>
+                    <i class="ph-bold ph-caret-right text-slate-400 group-hover:text-emerald-500 transition transform group-hover:translate-x-1 shrink-0"></i>
                 </td>
               </tr>
             </template>

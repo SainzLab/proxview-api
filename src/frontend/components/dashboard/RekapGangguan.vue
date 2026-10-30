@@ -1,6 +1,5 @@
 <template>
   <main class="bg-[#f8f9fa] min-h-screen font-sans p-8 pb-12 overflow-x-hidden animate-fade-in" @click="closeExportMenu">
-    
     <!-- Header Halaman -->
     <div class="flex justify-between items-end mb-6">
       <div>
@@ -9,9 +8,10 @@
         </h2>
         <p class="text-slate-500 text-sm font-medium">Pemantauan riwayat insiden dan performa respons teknisi secara otomatis.</p>
       </div>
+
       <div class="flex gap-3 relative" @click.stop>
-        <button
-          @click="showExportMenu = !showExportMenu"
+        <button 
+          @click="showExportMenu = !showExportMenu" 
           :disabled="isExporting"
           class="px-4 h-[42px] bg-slate-900 text-white rounded-lg flex items-center gap-2 hover:bg-slate-800 disabled:opacity-50 text-xs font-bold transition shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
         >
@@ -21,32 +21,23 @@
         </button>
 
         <!-- Dropdown Opsi Periode Export PDF -->
-        <div
-          v-if="showExportMenu"
+        <div 
+          v-if="showExportMenu" 
           class="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200/80 rounded-xl shadow-lg py-1.5 z-50 overflow-hidden animate-fade-in"
         >
           <div class="px-3.5 py-2 bg-slate-50/50 border-b border-slate-100">
             <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Pilih Rentang Laporan</p>
             <p class="text-[11px] text-slate-500 mt-0.5">Filter Level: <span class="text-slate-900 font-semibold">{{ analyticsSeverity === 'ALL' ? 'Semua Level' : analyticsSeverity }}</span></p>
           </div>
-          <button
-            @click="exportToPdf('24h')"
-            class="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center justify-between transition"
-          >
+          <button @click="exportToPdf('24h')" class="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center justify-between transition">
             <span class="flex items-center gap-2"><i class="ph-bold ph-clock text-slate-400"></i> 24 Jam Terakhir</span>
             <span class="text-[10px] text-slate-400 font-medium">Per Jam</span>
           </button>
-          <button
-            @click="exportToPdf('7d')"
-            class="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center justify-between transition"
-          >
+          <button @click="exportToPdf('7d')" class="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center justify-between transition">
             <span class="flex items-center gap-2"><i class="ph-bold ph-calendar-blank text-slate-400"></i> 7 Hari Terakhir</span>
             <span class="text-[10px] text-slate-400 font-medium">Per Hari</span>
           </button>
-          <button
-            @click="exportToPdf('30d')"
-            class="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center justify-between transition"
-          >
+          <button @click="exportToPdf('30d')" class="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center justify-between transition">
             <span class="flex items-center gap-2"><i class="ph-bold ph-calendar text-slate-400"></i> 30 Hari Terakhir</span>
             <span class="text-[10px] text-slate-400 font-medium">Per Hari</span>
           </button>
@@ -107,21 +98,16 @@
     <div class="mb-6">
       <div class="flex items-center justify-between mb-4 mt-10">
         <div>
-          <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-             Analitik Kinerja Sistem
-          </h3>
+          <h3 class="text-base font-bold text-slate-900 flex items-center gap-2"> Analitik Kinerja Sistem </h3>
           <p class="text-xs text-slate-500 font-medium mt-0.5">Dihitung otomatis dari riwayat sistem &bull; {{ filterLabelText }}</p>
         </div>
-        
         <div class="flex flex-wrap gap-3 items-center">
-          <!-- Filter Level Severity Analitik -->
           <div class="flex bg-slate-50 border border-slate-200/80 rounded-lg p-1">
             <button @click="setAnalyticsSeverity('ALL')" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition border" :class="analyticsSeverity === 'ALL' ? 'bg-white text-slate-900 border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-900 border-transparent'">Semua</button>
             <button @click="setAnalyticsSeverity('DOWN')" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition border" :class="analyticsSeverity === 'DOWN' ? 'bg-white text-slate-900 border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-900 border-transparent'">Down</button>
             <button @click="setAnalyticsSeverity('CRITICAL')" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition border" :class="analyticsSeverity === 'CRITICAL' ? 'bg-white text-slate-900 border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-900 border-transparent'">Critical</button>
             <button @click="setAnalyticsSeverity('WARNING')" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition border" :class="analyticsSeverity === 'WARNING' ? 'bg-white text-slate-900 border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-900 border-transparent'">Warning</button>
           </div>
-          <!-- Filter Rentang Periode Analitik -->
           <div class="flex bg-slate-50 border border-slate-200/80 rounded-lg p-1">
             <button @click="setAnalyticsFilter('24h')" class="px-4 py-1.5 rounded-md text-xs font-semibold transition border" :class="analyticsFilter === '24h' ? 'bg-white text-slate-900 border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-900 border-transparent'">24 Jam</button>
             <button @click="setAnalyticsFilter('7d')" class="px-4 py-1.5 rounded-md text-xs font-semibold transition border" :class="analyticsFilter === '7d' ? 'bg-white text-slate-900 border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-900 border-transparent'">7 Hari</button>
@@ -130,7 +116,7 @@
         </div>
       </div>
 
-      <!-- KPI Cards (4 Metrik Utama) -->
+      <!-- KPI Cards -->
       <div class="grid grid-cols-4 gap-4 mb-4">
         <!-- TOTAL UPTIME -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-emerald-300 transition-colors">
@@ -138,21 +124,18 @@
           <h3 class="text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.total_uptime_sec) }}</h3>
           <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">Waktu sistem beroperasi normal</p>
         </div>
-        
         <!-- TOTAL DOWNTIME -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-rose-300 transition-colors">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 relative z-10"><i class="ph-bold ph-arrow-circle-down text-rose-500"></i> Total Downtime</p>
           <h3 class="text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.total_downtime_sec) }}</h3>
           <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">Akumulasi seluruh waktu gangguan</p>
         </div>
-
         <!-- MTTR -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-cyan-300 transition-colors">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 relative z-10"><i class="ph-bold ph-timer text-cyan-500"></i> MTTR</p>
           <h3 class="text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.mttr_sec) }}</h3>
           <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">Rata-rata waktu pemulihan per insiden</p>
         </div>
-        
         <!-- AVAILABILITY -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-emerald-300 transition-colors">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 relative z-10"><i class="ph-bold ph-shield-check text-emerald-500"></i> Availability</p>
@@ -168,19 +151,15 @@
         <i class="ph-bold ph-warning"></i> {{ analyticsError }}
       </div>
       <div v-else class="grid grid-cols-2 gap-4">
-        <!-- Grafik Availability -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">Availability (%)</h4>
           <p class="text-[11px] text-slate-500 mb-2 font-medium">Persentase ketersediaan sistem per {{ analyticsFilter === '24h' ? 'jam' : 'hari' }}</p>
           <apexchart type="area" height="260" :options="availabilityOptions" :series="availabilitySeries" />
         </div>
-        
-        <!-- Grafik MTTR -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">MTTR (Hari / Jam / Menit / Detik)</h4>
           <p class="text-[11px] text-slate-500 mb-2 font-medium">Rata-rata durasi pemulihan per {{ analyticsFilter === '24h' ? 'jam' : 'hari' }}</p>
           <apexchart type="bar" height="260" :options="mttrOptions" :series="mttrSeries" />
-          
           <div v-if="mttrInfo" class="mt-3 pt-3 border-t border-slate-100 grid grid-cols-3 gap-3 text-[11px]">
             <div class="bg-slate-50 rounded-lg p-2 border border-slate-100">
               <p class="text-slate-500 mb-0.5 font-medium">Terlama ({{ mttrInfo.peak.label }})</p>
@@ -230,52 +209,60 @@
         <i class="ph-bold ph-spinner animate-spin text-2xl text-slate-400 mb-2 inline-block"></i>
         <p class="text-xs font-medium">Memuat data tiket...</p>
       </div>
+
       <div v-else-if="tickets.length === 0" class="bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-center py-12 text-slate-500 font-medium text-xs">
         Belum ada riwayat gangguan yang tercatat.
       </div>
+
       <div v-else-if="filteredTickets.length === 0" class="bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-center py-12 text-slate-500 font-medium text-xs">
         Tidak ada tiket yang cocok dengan pencarian/filter.
       </div>
-      
+
       <div 
         v-else 
         v-for="ticket in filteredTickets" 
         :key="ticket.id" 
-        class="bg-white border rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-300" 
+        class="bg-white border rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-300"
         :class="ticket.isExpanded ? 'border-slate-300 ring-1 ring-slate-200' : 'border-slate-200/80'"
       >
-        
         <!-- Baris Utama Tiket (Header) -->
         <div 
           class="flex items-center p-5 relative cursor-pointer" 
-          :class="ticket.isExpanded ? 'bg-slate-50/50' : 'hover:bg-slate-50/50'" 
+          :class="ticket.isExpanded ? 'bg-slate-50/50' : 'hover:bg-slate-50/50'"
           @click="toggleTicketExpand(ticket)"
         >
-          <!-- Indikator warna dari fungsi logic Anda (Arahkan warna ke Tailwind standard/pastel jika mungkin) -->
           <div class="absolute left-4 top-1/2 -translate-y-1/2 w-1.5 h-10 rounded-full" :class="getIndicatorColor(ticket)"></div>
           
           <div class="pl-5 flex-1">
-            <div class="text-[11px] font-semibold text-slate-500 mb-1 flex items-center gap-2">
-              <span class="text-slate-800 font-bold font-mono tracking-tight">{{ ticket.id }}</span> &bull; 
-              <span class="font-mono tracking-tight font-medium" :class="ticket.is_resolved ? 'text-slate-500' : 'text-slate-800'">{{ formatDate(ticket.time) }}</span>
-              <span v-if="ticket.is_resolved" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border border-slate-200">Selesai</span>
-            </div>
-            
-            <h3 class="text-base font-bold mb-1 tracking-tight" :class="[ticket.isExpanded ? 'text-slate-900' : '', ticket.is_resolved ? 'text-slate-600' : 'text-slate-900']">
-              {{ ticket.title }}
-            </h3>
-            
-            <div class="flex items-center gap-3">
-              <p class="text-xs text-slate-500 font-semibold font-mono tracking-tight flex items-center gap-1.5">
-                <i class="ph-bold ph-hard-drive"></i> {{ ticket.target }}
-              </p>
-              <!-- Fungsi getStatusBadge() harus me-return class pastel (contoh: bg-rose-50 text-rose-700 border border-rose-200/60) -->
-              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border" :class="getStatusBadge(ticket.status, ticket.severity)">
-                {{ ticket.severity === 'RECOVERED' ? 'PULIH (RECOVERED)' : (ticket.status === 'Gangguan Aktif' ? ticket.severity : ticket.status) }}
-              </span>
-            </div>
+              <div class="text-[11px] font-semibold text-slate-500 mb-1 flex items-center gap-2">
+                  <span class="text-slate-800 font-bold font-mono tracking-tight">{{ ticket.id }}</span>
+                  &bull;
+                  <span class="font-mono tracking-tight font-medium" :class="ticket.is_resolved ? 'text-slate-500' : 'text-slate-800'">
+                      {{ formatDate(ticket.time) }}
+                  </span>
+              </div>
+              
+              <h3 class="text-base font-bold mb-1 tracking-tight" :class="[ticket.isExpanded ? 'text-slate-900' : '', ticket.is_resolved ? 'text-slate-600' : 'text-slate-900']">
+                  {{ ticket.title }}
+              </h3>
+              
+              <div class="flex items-center gap-3">
+                  <p class="text-xs text-slate-500 font-semibold font-mono tracking-tight flex items-center gap-1.5">
+                      <i class="ph-bold ph-hard-drive"></i> {{ ticket.target }}
+                  </p>
+
+                  <!-- Badge 1: Tingkat Keparahan Asli -->
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border" :class="getSeverityBadge(ticket.original_severity || ticket.severity)">
+                      {{ ticket.original_severity || ticket.severity }}
+                  </span>
+
+                  <!-- Badge 2: Status Penanganan Aktual -->
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border" :class="getStatusBadge(ticket.status)">
+                      {{ ticket.status === 'Selesai' ? 'SELESAI' : (ticket.status === 'Dalam Penanganan' ? 'DIPROSES' : 'MENUNGGU') }}
+                  </span>
+              </div>
           </div>
-          
+
           <div>
             <button class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition flex items-center gap-2 shadow-sm">
               <template v-if="ticket.isExpanded"><i class="ph-bold ph-caret-up"></i> Tutup</template>
@@ -286,48 +273,39 @@
 
         <!-- Bagian Expand (Timeline Tracker) -->
         <div v-if="ticket.isExpanded" class="border-t border-slate-200/80 p-6 bg-slate-50/50">
-          
           <div class="flex items-center gap-2 mb-8">
             <div class="w-2 h-2 rounded-full" :class="ticket.is_resolved ? 'bg-emerald-500' : 'bg-slate-700'"></div>
             <h4 class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Laporan Pemantauan</h4>
           </div>
-          
+
           <div class="relative px-4 mb-10 mt-6">
-            <!-- Wrapper utama garis (Track) yang menentukan batas kiri dan kanan -->
             <div class="absolute top-4 left-16 right-16 h-[2px] bg-slate-200 z-0 overflow-hidden">
-              <!-- Garis progres diubah menjadi child elemen agar w-full tidak menembus batas -->
               <div class="h-full z-0 transition-all duration-1000" :class="getTimelineProgress(ticket.status)"></div>
             </div>
-            
+
             <div class="relative z-10 flex justify-between items-start">
-              <!-- Tahap 1: Deteksi -->
               <div class="flex flex-col items-center gap-3 w-24">
                 <div class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-white" :class="ticket.is_resolved ? 'bg-emerald-500' : 'bg-slate-700'">
                   <i class="ph-bold ph-warning text-lg"></i>
                 </div>
                 <span class="text-xs font-bold text-slate-800 text-center leading-tight">Gangguan Terdeteksi</span>
               </div>
-              
-              <!-- Tahap 2: Perbaikan -->
+
               <div class="flex flex-col items-center gap-3 w-24">
-                <div class="w-8 h-8 shrink-0 rounded-full border flex items-center justify-center transition-colors duration-500" 
-                  :class="ticket.status === 'Gangguan Aktif' ? 'bg-white text-slate-400 border-slate-200' : 
-                        (ticket.status === 'Selesai' ? 'bg-emerald-500 text-white border-emerald-500' : 
-                        (ticket.severity === 'RECOVERED' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-cyan-50 text-cyan-600 border-cyan-200'))">
+                <div class="w-8 h-8 shrink-0 rounded-full border flex items-center justify-center transition-colors duration-500"
+                  :class="ticket.status === 'Gangguan Aktif' ? 'bg-white text-slate-400 border-slate-200' : (ticket.status === 'Selesai' ? 'bg-emerald-500 text-white border-emerald-500' : (ticket.severity === 'RECOVERED' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-cyan-50 text-cyan-600 border-cyan-200'))">
                   <i v-if="ticket.status === 'Selesai'" class="ph-bold ph-check text-lg"></i>
                   <i v-else class="ph-fill ph-wrench text-lg"></i>
                 </div>
                 <span class="text-xs font-bold text-center leading-tight" 
-                  :class="ticket.status === 'Gangguan Aktif' ? 'text-slate-400' : 
-                        (ticket.status === 'Selesai' ? 'text-emerald-600' : 
-                        (ticket.severity === 'RECOVERED' ? 'text-blue-600' : 'text-cyan-600'))">
+                  :class="ticket.status === 'Gangguan Aktif' ? 'text-slate-400' : (ticket.status === 'Selesai' ? 'text-emerald-600' : (ticket.severity === 'RECOVERED' ? 'text-blue-600' : 'text-cyan-600'))">
                   Perbaikan
                 </span>
               </div>
-              
-              <!-- Tahap 3: Selesai -->
+
               <div class="flex flex-col items-center gap-3 w-24">
-                <div class="w-8 h-8 shrink-0 rounded-full border flex items-center justify-center transition-colors duration-500" :class="ticket.status === 'Selesai' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-400 border-slate-200'">
+                <div class="w-8 h-8 shrink-0 rounded-full border flex items-center justify-center transition-colors duration-500"
+                  :class="ticket.status === 'Selesai' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-400 border-slate-200'">
                   <i v-if="ticket.status === 'Selesai'" class="ph-bold ph-check text-lg"></i>
                   <i v-else class="ph-bold ph-check text-lg"></i>
                 </div>
@@ -335,10 +313,9 @@
               </div>
             </div>
           </div>
-          
+
           <!-- FOOTER KETERANGAN TRACKING -->
           <div class="bg-white border border-slate-200 p-4 rounded-xl flex flex-wrap gap-4 items-center justify-between shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            
             <template v-if="ticket.status === 'Gangguan Aktif'">
               <div class="flex items-center gap-3 text-slate-600">
                 <div class="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-100"><i class="ph-bold ph-bell-ringing"></i></div>
@@ -361,33 +338,30 @@
               </div>
               <span class="px-3 py-1 bg-cyan-50 text-cyan-700 border border-cyan-200/60 rounded-md text-[10px] font-bold tracking-wider animate-pulse">DIPROSES</span>
             </template>
-            
+
             <template v-else>
               <div class="flex items-center gap-3 text-slate-600">
                 <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-200/60"><i class="ph-bold ph-check-circle"></i></div>
                 <p class="text-xs font-medium">Diselesaikan oleh: <span class="font-bold text-slate-900">{{ ticket.technicians || 'Sistem Otomatis (Auto-Recover)' }}</span></p>
               </div>
               <div class="flex flex-wrap gap-4 md:gap-6 text-xs bg-slate-50/80 px-4 py-2.5 rounded-lg border border-slate-200">
-                <p class="text-slate-500 font-medium">Total Downtime: <span class="font-bold font-mono tracking-tight text-rose-600 ml-1">{{ ticket.downtime_duration }}</span></p>
+                <p class="text-slate-500 font-medium"> {{ (ticket.original_severity || ticket.severity) === 'DOWN' ? 'Total Downtime:' : 'Total Gangguan:' }}<span class="font-bold font-mono tracking-tight text-rose-600 ml-1">{{ ticket.downtime_duration }}</span></p>
                 <p class="text-slate-500 font-medium border-l border-slate-300 pl-4 md:pl-6">Waktu Penanganan: <span class="font-bold font-mono tracking-tight text-cyan-700 ml-1">{{ ticket.handling_duration }}</span></p>
               </div>
             </template>
-            
           </div>
         </div>
-        
       </div>
     </div>
 
     <!-- TOAST NOTIFICATION -->
-    <ToastNotification
-      :show="toast.show"
-      :type="toast.type"
-      :title="toast.title"
-      :message="toast.message"
-      @close="toast.show = false"
+    <ToastNotification 
+      :show="toast.show" 
+      :type="toast.type" 
+      :title="toast.title" 
+      :message="toast.message" 
+      @close="toast.show = false" 
     />
-
   </main>
 </template>
 
@@ -420,9 +394,7 @@ const showToast = (type, title, message) => {
 // STATE EXPORT PDF
 const showExportMenu = ref(false);
 const isExporting = ref(false);
-const closeExportMenu = () => {
-  showExportMenu.value = false;
-};
+const closeExportMenu = () => { showExportMenu.value = false; };
 
 const toggleTicketExpand = (ticket) => {
   ticket.isExpanded = !ticket.isExpanded;
@@ -432,11 +404,14 @@ const toggleTicketExpand = (ticket) => {
 // STATE SEARCH & FILTER TIKET
 const searchQuery = ref('');
 const statusFilter = ref('');
+
 const filteredTickets = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
+  
   return tickets.value.filter(t => {
     const open = t.status !== 'Selesai';
     let okStatus = true;
+    
     switch (statusFilter.value) {
       case 'DOWN':
       case 'CRITICAL':
@@ -450,8 +425,10 @@ const filteredTickets = computed(() => {
         okStatus = t.status === 'Selesai';
         break;
     }
+    
     if (!okStatus) return false;
     if (!q) return true;
+    
     return [t.id, t.title, t.target, t.severity, t.status, t.technicians]
       .some(v => v != null && String(v).toLowerCase().includes(q));
   });
@@ -468,7 +445,6 @@ const filterLabelText = computed(() => {
   return `${periodTxt} - ${sevTxt}`;
 });
 
-// Hanya menampung 4 Metrik Utama
 const analytics = ref({
   summary: { total_uptime_sec: 0, total_downtime_sec: 0, mttr_sec: 0, availability: 100, incident_count: 0 },
   chartData: []
@@ -477,11 +453,33 @@ const analytics = ref({
 // Format Waktu & Warna Dasar
 const formatDate = (dateString) => formatWibShort(dateString);
 
-const getIndicatorColor = (t) => t.status === 'Selesai' ? 'bg-emerald-500' : t.severity === 'RECOVERED' ? 'bg-blue-500' : t.severity === 'DOWN' ? 'bg-rose-500' : t.severity === 'CRITICAL' ? 'bg-orange-500' : 'bg-amber-400';
-const getStatusBadge = (s, sv) => s === 'Selesai' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : sv === 'RECOVERED' ? 'bg-blue-50 text-blue-700 border-blue-200/60' : s === 'Dalam Penanganan' ? 'bg-cyan-50 text-cyan-700 border-cyan-200/60' : sv === 'DOWN' ? 'bg-rose-50 text-rose-700 border-rose-200/60' : sv === 'CRITICAL' ? 'bg-orange-50 text-orange-700 border-orange-200/60' : 'bg-amber-50 text-amber-700 border-amber-200/60';
+// ==========================================
+// WARNA INDIKATOR & BADGE TERBARU
+// ==========================================
+const getIndicatorColor = (t) => {
+    const sev = String(t.original_severity || t.severity).toUpperCase();
+    if (t.status === 'Selesai') {
+        return sev === 'DOWN' ? 'bg-rose-300' : sev === 'CRITICAL' ? 'bg-orange-300' : 'bg-amber-300';
+    }
+    return sev === 'DOWN' ? 'bg-rose-500' : sev === 'CRITICAL' ? 'bg-orange-500' : 'bg-amber-400';
+};
+
+const getSeverityBadge = (severity) => {
+    const s = String(severity).toUpperCase();
+    if (s === 'DOWN') return 'bg-rose-50 text-rose-700 border-rose-200/60';
+    if (s === 'CRITICAL') return 'bg-orange-50 text-orange-700 border-orange-200/60';
+    return 'bg-amber-50 text-amber-700 border-amber-200/60';
+};
+
+const getStatusBadge = (status) => {
+    if (status === 'Selesai') return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
+    if (status === 'Dalam Penanganan') return 'bg-cyan-50 text-cyan-700 border-cyan-200/60';
+    return 'bg-slate-50 text-slate-600 border-slate-200/60';
+};
+
 const getTimelineProgress = (s) => s === 'Gangguan Aktif' ? 'bg-rose-500 w-0' : s === 'Dalam Penanganan' ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 w-[50%]' : 'bg-emerald-500 w-full';
 
-// FORMATTER WAKTU PRESISI (Detik -> Hari, Jam, Menit, Detik)
+// FORMATTER WAKTU PRESISI
 const formatPreciseDuration = (totalSeconds) => {
   if (!totalSeconds || totalSeconds <= 0) return '0d';
   const d = Math.floor(totalSeconds / 86400);
@@ -503,9 +501,7 @@ const fetchDataAll = async (silent = false) => {
 };
 
 const fetchTickets = async (silent = false) => {
-  if (!silent && tickets.value.length === 0) {
-    isLoading.value = true;
-  }
+  if (!silent && tickets.value.length === 0) { isLoading.value = true; }
   try {
     const response = await fetch('/api/incidents');
     const json = await response.json();
@@ -518,19 +514,11 @@ const fetchTickets = async (silent = false) => {
         }
         return { ...t, isExpanded: expanded };
       });
-      
       hasInitializedExpand.value = true;
 
-      // ==========================================
-      // PERBAIKAN: Kalkulasi Total Riwayat (Keseluruhan)
-      // Menggunakan fallback original_severity agar tiket yang sudah 
-      // 'RECOVERED' tetap terhitung di kategori aslinya.
-      // ==========================================
       stats.value.down = tickets.value.filter(t => (t.original_severity || t.severity) === 'DOWN').length;
       stats.value.critical = tickets.value.filter(t => (t.original_severity || t.severity) === 'CRITICAL').length;
       stats.value.warning = tickets.value.filter(t => (t.original_severity || t.severity) === 'WARNING').length;
-      
-      // Status progres dan selesai dibiarkan normal
       stats.value.progress = tickets.value.filter(t => t.status === 'Dalam Penanganan').length;
       stats.value.resolved = tickets.value.filter(t => t.is_resolved === 1).length;
     }
@@ -546,11 +534,10 @@ const fetchAnalytics = async () => {
     const response = await fetch(`/api/analytics?period=${analyticsFilter.value}&severity=${analyticsSeverity.value}`);
     const json = await response.json();
     if (!json.success) throw new Error();
-
     const sum = json.summary;
-    const devices = sum.total_devices || 1;
+    const devices = sum.total_devices || 1; 
     const humanUptimeSec = sum.total_uptime_sec / devices;
-
+    
     analytics.value = {
       summary: {
         total_uptime_sec: humanUptimeSec,
@@ -574,7 +561,7 @@ const fetchAnalytics = async () => {
   }
 };
 
-// FUNGSI EXPORT PDF (24 Jam, 7 Hari, 30 Hari)
+// FUNGSI EXPORT PDF
 const PERIOD_CONFIG = {
   '24h': { label: '24 Jam Terakhir', ms: 24 * 3600 * 1000 },
   '7d':  { label: '7 Hari Terakhir', ms: 7 * 24 * 3600 * 1000 },
@@ -585,17 +572,17 @@ const exportToPdf = async (periodKey) => {
   showExportMenu.value = false;
   if (isExporting.value) return;
   isExporting.value = true;
-
+  
   try {
     const periodCfg = PERIOD_CONFIG[periodKey] || PERIOD_CONFIG['24h'];
     const sevFilter = analyticsSeverity.value;
     const sevLabel = sevFilter === 'ALL' ? 'Semua Level (Warning, Critical, Down)' : `Level ${sevFilter}`;
 
-    // Ambil data analitik dan tiket terbaru sesuai periode yang dipilih
     const [analyticsRes, incidentsRes] = await Promise.all([
       fetch(`/api/analytics?period=${periodKey}&severity=${sevFilter}`),
       fetch('/api/incidents')
     ]);
+
     const analyticsJson = await analyticsRes.json();
     const incidentsJson = await incidentsRes.json();
 
@@ -608,14 +595,15 @@ const exportToPdf = async (periodKey) => {
     const nowMs = Date.now();
     const winStartMs = nowMs - periodCfg.ms;
 
-    // Filter daftar tiket yang berada dalam rentang waktu periode & level severity
     const periodTickets = (incidentsJson.data || []).filter(t => {
       const startDate = parseUtcDate(t.time);
       const endDate = t.resolved_at ? parseUtcDate(t.resolved_at) : new Date(nowMs);
       const startMs = startDate ? startDate.getTime() : 0;
       const endMs = endDate ? endDate.getTime() : nowMs;
+      
       const inWindow = endMs > winStartMs && startMs < nowMs;
       if (!inWindow) return false;
+      
       if (sevFilter !== 'ALL') {
         const origSev = String(t.original_severity || t.severity || '').toUpperCase();
         return origSev === sevFilter;
@@ -625,21 +613,19 @@ const exportToPdf = async (periodKey) => {
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-    // Header Laporan
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, 297, 32, 'F');
     doc.setTextColor(16, 185, 129);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(15);
     doc.text('VIEWMOX - LAPORAN REKAPITULASI GANGGUAN & ANALITIK SLA', 14, 13);
-
+    
     doc.setTextColor(226, 232, 240);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9.5);
     doc.text(`Periode Laporan: ${periodCfg.label}   |   Filter Level: ${sevLabel}`, 14, 20);
     doc.text(`Waktu Cetak: ${formatWibDateTime(new Date())} WIB`, 14, 26);
 
-    // 1. Tabel Ringkasan Metrik Kinerja Sistem (ITIL SLA)
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
@@ -661,7 +647,6 @@ const exportToPdf = async (periodKey) => {
       margin: { left: 14, right: 14 }
     });
 
-    // 2. Tabel Rincian Analitik per Periode Bucket
     let nextY = doc.lastAutoTable.finalY + 8;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
@@ -681,25 +666,18 @@ const exportToPdf = async (periodKey) => {
       theme: 'striped',
       headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
       bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
-      columnStyles: {
-        0: { fontStyle: 'bold' },
-        3: { halign: 'center' },
-        5: { halign: 'right', fontStyle: 'bold' }
-      },
+      columnStyles: { 0: { fontStyle: 'bold' }, 3: { halign: 'center' }, 5: { halign: 'right', fontStyle: 'bold' } },
       margin: { left: 14, right: 14 }
     });
 
-    // 3. Tabel Daftar Riwayat Tiket Gangguan
     nextY = doc.lastAutoTable.finalY + 8;
-    if (nextY > 175) {
-      doc.addPage();
-      nextY = 16;
-    }
+    if (nextY > 175) { doc.addPage(); nextY = 16; }
+    
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.text(`3. Daftar Riwayat Tiket Gangguan (${periodTickets.length} Tiket)`, 14, nextY);
 
-    const ticketBody = periodTickets.length > 0
+    const ticketBody = periodTickets.length > 0 
       ? periodTickets.map((t, idx) => [
           idx + 1,
           t.id,
@@ -738,6 +716,7 @@ const exportToPdf = async (periodKey) => {
 
     const stamp = new Date().toISOString().slice(0, 10);
     doc.save(`Laporan_Rekap_Gangguan_${periodKey}_${sevFilter}_${stamp}.pdf`);
+    
   } catch (err) {
     console.error('Error exportToPdf:', err);
     showToast('error', 'Gagal Mengekspor', 'Gagal mengekspor laporan PDF.');
@@ -763,6 +742,7 @@ const availabilityColor = computed(() => {
   const a = analytics.value.summary.availability;
   return a >= 99 ? 'text-emerald-600' : a >= 95 ? 'text-amber-600' : 'text-rose-600';
 });
+
 const availabilityBar = computed(() => {
   const a = analytics.value.summary.availability;
   return a >= 99 ? 'bg-emerald-500' : a >= 95 ? 'bg-amber-500' : 'bg-rose-500';
@@ -779,8 +759,8 @@ const baseChartOptions = (type) => {
     theme: { mode: dark ? 'dark' : 'light' },
     grid: { borderColor: dark ? '#334155' : '#f1f5f9', strokeDashArray: 4 },
     dataLabels: { enabled: false },
-    xaxis: {
-      categories: chartLabels.value,
+    xaxis: { 
+      categories: chartLabels.value, 
       labels: { style: { colors: dark ? '#94a3b8' : '#64748b', fontSize: '11px' } },
       axisBorder: { color: dark ? '#334155' : '#e2e8f0' },
       axisTicks: { color: dark ? '#334155' : '#e2e8f0' }
@@ -791,21 +771,30 @@ const baseChartOptions = (type) => {
 };
 
 const availabilitySeries = computed(() => [{ name: 'Availability', data: seriesOf('availability') }]);
+
 const availabilityOptions = computed(() => {
   const vals = seriesOf('availability');
   const minVal = vals.length ? Math.max(0, Math.floor(Math.min(...vals)) - 1) : 0;
   const dark = isDark.value;
   return {
-    ...baseChartOptions('area'), colors: ['#10b981'], stroke: { curve: 'smooth', width: 2.5 },
+    ...baseChartOptions('area'),
+    colors: ['#10b981'],
+    stroke: { curve: 'smooth', width: 2.5 },
     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.25, opacityTo: 0.02 } },
-    yaxis: { min: minVal, max: 100, labels: { style: { colors: dark ? '#94a3b8' : '#64748b', fontSize: '11px' }, formatter: (v) => `${v.toFixed(1)}%` } },
+    yaxis: { 
+      min: minVal, max: 100, 
+      labels: { style: { colors: dark ? '#94a3b8' : '#64748b', fontSize: '11px' }, formatter: (v) => `${v.toFixed(1)}%` } 
+    },
     tooltip: { theme: dark ? 'dark' : 'light', y: { formatter: (v) => `${v.toFixed(2)}%` } }
   };
 });
 
 // DETAIL WAKTU PADA CHART MTTR
 const CHART_UNITS = [
-  { name: 'Detik', div: 1 }, { name: 'Menit', div: 60 }, { name: 'Jam', div: 3600 }, { name: 'Hari', div: 86400 }
+  { name: 'Detik', div: 1 },
+  { name: 'Menit', div: 60 },
+  { name: 'Jam', div: 3600 },
+  { name: 'Hari', div: 86400 }
 ];
 
 const pickChartUnit = (maxSec) => {
@@ -820,15 +809,18 @@ const seriesInUnit = (key, unit) => analytics.value.chartData.map(d => Math.roun
 const formatFullDuration = (totalSeconds) => {
   const total = Math.max(0, Math.round(Number(totalSeconds) || 0));
   if (total === 0) return 'Tidak ada data (0 detik)';
+  
   const d = Math.floor(total / 86400);
   const h = Math.floor((total % 86400) / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
+  
   const parts = [];
   if (d > 0) parts.push(`${d} hari`);
   if (h > 0) parts.push(`${h} jam`);
   if (m > 0) parts.push(`${m} menit`);
   if (s > 0) parts.push(`${s} detik`);
+  
   return `${parts.join(' ')} (${total.toLocaleString('id-ID')} detik)`;
 };
 
@@ -855,18 +847,22 @@ const durationAxis = (unit) => {
 };
 
 const mttrSeries = computed(() => [{ name: 'MTTR', data: seriesInUnit('mttr_sec', mttrUnit.value) }]);
+
 const mttrOptions = computed(() => ({
-  ...baseChartOptions('bar'), colors: ['#06b6d4'],
+  ...baseChartOptions('bar'),
+  colors: ['#06b6d4'],
   plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
   yaxis: durationAxis(mttrUnit.value),
   tooltip: { theme: isDark.value ? 'dark' : 'light', y: { formatter: (v, { dataPointIndex }) => formatFullDuration(analytics.value.chartData[dataPointIndex]?.mttr_sec) } }
 }));
 
 let refreshTimer = null;
-onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); });
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer);
+});
+
 onMounted(() => {
   fetchDataAll(false);
-  // Polling realtime setiap 3 detik tanpa me-reset status expand tiket
   refreshTimer = setInterval(() => fetchDataAll(true), 3000);
 });
 </script>
