@@ -195,10 +195,10 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
                         }
                     };
                     
-                    // Fire and forget menggunakan getMessaging() ES Module
-                    getMessaging().sendMulticast(fcmPayload)
-                         .then(res => console.log(`[FCM] Push terkirim ke ${res.successCount} perangkat untuk alert #${currentAlertId}.`))
-                         .catch(err => console.error(`[FCM ERROR] Gagal mengirim pesan multicast:`, err));
+                    // Ganti sendMulticast menjadi sendEachForMulticast
+                    getMessaging().sendEachForMulticast(fcmPayload)
+                        .then(res => console.log(`[FCM] Push terkirim ke ${res.successCount} perangkat untuk alert #${currentAlertId}.`))
+                        .catch(err => console.error(`[FCM ERROR] Gagal mengirim pesan multicast:`, err));
                 }
             } catch (fcmDbErr) {
                 console.error('[FCM DB ERROR] Gagal mengambil token teknisi dari DB:', fcmDbErr);

@@ -5,18 +5,21 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import { initializeApp, cert } from 'firebase-admin/app';
+import { initializeApp } from 'firebase-admin/app';
 
 try {
-    const serviceAccountPath = new URL('./serviceAccountKey.json', import.meta.url);
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+    // 1. Dapatkan path absolut ke file JSON
+    const serviceAccountPath = fileURLToPath(new URL('./serviceAccountKey.json', import.meta.url));
     
-    initializeApp({
-        credential: cert(serviceAccount)
-    });
+    // 2. Set environment variable secara terprogram (Cara paling standar & direkomendasikan Google)
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = serviceAccountPath;
+    
+    // 3. Inisialisasi kosong, Firebase otomatis membaca kredensial dari variable di atas
+    initializeApp();
+    
     console.log('[INFO] Firebase Admin SDK berhasil diinisialisasi.');
 } catch (error) {
-    console.error('[CRITICAL ERROR] Gagal menginisialisasi Firebase Admin.', error.message);
+    console.error('[CRITICAL ERROR] Gagal menginisialisasi Firebase Admin. Pastikan file serviceAccountKey.json tersedia.', error.message);
 }
 // =============================================
 
