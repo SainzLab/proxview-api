@@ -2,45 +2,50 @@
   <aside class="w-64 bg-white h-screen fixed left-0 top-0 border-r border-slate-200/80 flex flex-col z-20 font-sans shadow-[1px_0_2px_rgba(0,0,0,0.02)]">
     
     <!-- Logo -->
-    <div class="p-5">
-      <h1 class="text-xl font-bold flex items-center gap-2 text-slate-900">
-        <i class="ph-bold ph-activity text-slate-700 text-2xl"></i> ProxView
-      </h1>
-      <p class="text-[10px] text-slate-500 mt-1.5 uppercase tracking-wider font-semibold">Monitoring Proxmox</p>
+    <div class="p-5 flex flex-col items-start border-b border-slate-100 mb-2">
+        <img 
+            src="/diskominfosubang.png" 
+            alt="Logo Diskominfo Subang" 
+            class="h-16 object-contain mb-3 filter drop-shadow-[0_4px_5px_rgba(0,0,0,0.4)] drop-shadow-[0_2px_6px_rgba(0,0,0,0.15)]"
+        >
+        <p class="text-[9px] text-slate-500 mt-1 uppercase tracking-widest font-bold">
+            Porxview Monitoring Proxmox
+        </p>
     </div>
 
     <!-- Navigation -->
-    <div class="flex-1 overflow-y-auto py-5 flex flex-col gap-8 no-scrollbar">
-      
+    <div class="flex-1 overflow-y-auto py-3 flex flex-col gap-8 no-scrollbar">
       <!-- Menu Utama -->
       <nav class="px-4">
         <p class="text-[11px] text-slate-400 mb-3 font-semibold tracking-wider uppercase">Menu Utama</p>
         <ul class="space-y-1">
           <li>
-            <router-link 
-              to="/dashboard" 
-              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition', 
-                route.name === 'dashboard' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            <router-link
+              to="/dashboard"
+              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition',
+                       route.name === 'dashboard' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               ]"
             >
               <div class="flex items-center gap-3"><i class="ph ph-squares-four text-lg"></i> Dashboard</div>
             </router-link>
           </li>
+          
           <li>
-            <router-link 
-              to="/kelola-pengguna" 
-              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition', 
-                route.name === 'kelola-pengguna' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            <router-link
+              to="/kelola-pengguna"
+              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition',
+                       route.name === 'kelola-pengguna' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               ]"
             >
               <div class="flex items-center gap-3"><i class="ph ph-users text-lg"></i> Kelola Pengguna</div>
             </router-link>
           </li>
+          
           <li>
-            <router-link 
-              to="/target-monitoring" 
-              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition', 
-                route.name === 'target-monitoring' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            <router-link
+              to="/target-monitoring"
+              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition',
+                       route.name === 'target-monitoring' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               ]"
             >
               <div class="flex items-center gap-3"><i class="ph ph-graph text-lg"></i> Monitoring</div>
@@ -52,44 +57,48 @@
               </div>
             </router-link>
           </li>
+          
           <li>
-            <router-link 
-              to="/rekap-gangguan" 
-              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition', 
-                route.name === 'rekap-gangguan' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            <router-link
+              to="/rekap-gangguan"
+              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition',
+                       route.name === 'rekap-gangguan' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               ]"
             >
               <div class="flex items-center gap-3"><i class="ph ph-ticket text-lg"></i> Rekap Gangguan</div>
               <div class="flex items-center gap-2">
-                <span v-if="downCount > 0" class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                 <span v-if="downCount > 0" class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
               </div>
             </router-link>
           </li>
+
           <li>
-            <router-link 
-              to="/threshold-config" 
-              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition', 
-                route.name === 'threshold-config' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            <router-link
+              to="/threshold-config"
+              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition',
+                       route.name === 'threshold-config' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               ]"
             >
               <div class="flex items-center gap-3"><i class="ph ph-sliders text-lg"></i> Threshold Config</div>
             </router-link>
           </li>
+
           <li>
-            <router-link 
-              to="/proxmox-config" 
-              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition', 
-                route.name === 'proxmox-config' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            <router-link
+              to="/proxmox-config"
+              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition',
+                       route.name === 'proxmox-config' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               ]"
             >
               <div class="flex items-center gap-3"><i class="ph ph-hard-drives text-lg"></i> Proxmox API Config</div>
             </router-link>
           </li>
+
           <li>
-            <router-link 
-              to="/log" 
-              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition', 
-                route.name === 'Log' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            <router-link
+              to="/log"
+              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition',
+                       route.name === 'Log' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               ]"
             >
               <div class="flex items-center gap-3"><i class="ph ph-terminal text-lg"></i> Log Sistem</div>
@@ -97,7 +106,6 @@
           </li>
         </ul>
       </nav>
-
     </div>
 
     <!-- User Profile & Logout -->
@@ -112,27 +120,25 @@
         </div>
       </div>
       <button 
-        @click="showLogoutModal = true" 
+        @click="showLogoutModal = true"
         class="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-200 py-2 rounded-lg text-xs font-semibold transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
       >
         <i class="ph-bold ph-sign-out text-base"></i> Keluar Sistem
       </button>
     </div>
-
   </aside>
 
   <!-- Modal Konfirmasi Logout -->
   <Teleport to="body">
-    <div 
-      v-if="showLogoutModal" 
-      class="fixed inset-0 z-[1050] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" 
-      @click.self="showLogoutModal = false"
+    <div v-if="showLogoutModal" 
+         class="fixed inset-0 z-[1050] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans"
+         @click.self="showLogoutModal = false"
     >
       <div class="bg-white border border-slate-200/80 shadow-xl rounded-2xl w-full max-w-md overflow-hidden transform transition-all relative">
         <div class="p-6 pt-7">
           <div class="flex items-start gap-4">
             <div class="flex-shrink-0 w-12 h-12 bg-rose-50 border border-rose-100 rounded-full flex items-center justify-center text-rose-600 mt-0.5">
-              <i class="ph-bold ph-sign-out text-2xl"></i>
+               <i class="ph-bold ph-sign-out text-2xl"></i>
             </div>
             <div>
               <h3 class="text-lg font-bold text-slate-900 mb-2">Konfirmasi Keluar</h3>
@@ -144,16 +150,16 @@
         </div>
         <div class="bg-slate-50/50 px-6 py-4 flex justify-end gap-3 border-t border-slate-200/80">
           <button 
-            type="button"
-            @click="showLogoutModal = false" 
+            type="button" 
+            @click="showLogoutModal = false"
             class="px-5 py-2.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
             :disabled="isLoggingOut"
           >
             Batal
           </button>
           <button 
-            type="button"
-            @click="handleLogout" 
+            type="button" 
+            @click="handleLogout"
             class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-2 disabled:opacity-50"
             :disabled="isLoggingOut"
           >
