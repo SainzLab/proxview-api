@@ -1,6 +1,5 @@
 <template>
   <header class="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-8 sticky top-0 z-40 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-    
     <!-- Breadcrumb & Jam Digital -->
     <div class="text-xs font-semibold text-slate-500 flex items-center gap-2 uppercase tracking-wide">
       <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md text-slate-700 tracking-wider">
@@ -10,31 +9,29 @@
       </div>
     </div>
 
-    <!-- Aksi Kanan Atas: Toggle Tema, Notifikasi & Pengaturan Cronjob -->
+    <!-- Aksi Kanan Atas: Toggle Tema, Notifikasi, Pengaturan Cronjob & Simulasi Alarm -->
     <div class="flex items-center gap-2.5">
+      <!-- Tombol Simulasi Alarm -->
+       <button
+        @click="openSimulateModal"
+        title="Simulasi Alarm (Call/Pesan)"
+        class="w-9 h-9 flex items-center justify-center bg-white text-slate-600 rounded-full hover:bg-slate-50 hover:text-slate-900 border border-slate-200 transition relative shadow-sm"
+        :class="showSimulateModal ? 'bg-slate-50 text-slate-900 border-slate-300' : ''"
+      >
+        <i class="ph ph-flask text-lg"></i>
+      </button>
       
       <!-- Tombol Toggle Mode Gelap / Terang -->
-      <button 
-        @click="toggleTheme" 
-        :title="isDark ? 'Ubah ke Mode Terang' : 'Ubah ke Mode Gelap'"
-        class="w-9 h-9 flex items-center justify-center bg-white text-slate-600 rounded-full hover:bg-slate-50 hover:text-slate-900 border border-slate-200 transition relative shadow-sm"
-      >
+      <button @click="toggleTheme" :title="isDark ? 'Ubah ke Mode Terang' : 'Ubah ke Mode Gelap'" class="w-9 h-9 flex items-center justify-center bg-white text-slate-600 rounded-full hover:bg-slate-50 hover:text-slate-900 border border-slate-200 transition relative shadow-sm" >
         <i v-if="isDark" class="ph-fill ph-sun text-lg text-amber-400"></i>
         <i v-else class="ph ph-moon text-lg"></i>
       </button>
 
       <!-- Tombol Notifikasi + Dropdown -->
       <div class="relative" ref="notifWrapper">
-        <button 
-          @click.stop="toggleDropdown" 
-          class="w-9 h-9 flex items-center justify-center bg-white text-slate-600 rounded-full hover:bg-slate-50 hover:text-slate-900 border border-slate-200 transition relative shadow-sm"
-          :class="showDropdown ? 'bg-slate-50 text-slate-900' : ''"
-        >
+        <button @click.stop="toggleDropdown" class="w-9 h-9 flex items-center justify-center bg-white text-slate-600 rounded-full hover:bg-slate-50 hover:text-slate-900 border border-slate-200 transition relative shadow-sm" :class="showDropdown ? 'bg-slate-50 text-slate-900' : ''" >
           <i class="ph ph-bell text-lg" :class="alerts.length > 0 ? 'animate-pulse text-rose-500' : ''"></i>
-          <span 
-            v-if="alerts.length > 0" 
-            class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-rose-500 text-white text-[9px] font-bold font-mono tracking-tight rounded-full border border-white"
-          >
+          <span v-if="alerts.length > 0" class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-rose-500 text-white text-[9px] font-bold font-mono tracking-tight rounded-full border border-white" >
             {{ alerts.length > 99 ? '99+' : alerts.length }}
           </span>
         </button>
@@ -47,7 +44,7 @@
             </h4>
             <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider bg-white px-1.5 py-0.5 rounded border border-slate-200">{{ alerts.length }} aktif</span>
           </div>
-          
+
           <!-- Maksimal 4 item terlihat, sisanya bisa di-scroll (4 x 72px) -->
           <div class="max-h-[288px] overflow-y-auto divide-y divide-slate-100">
             <div v-if="isLoading && alerts.length === 0" class="p-8 text-center text-slate-500">
@@ -71,7 +68,6 @@
               </span>
             </div>
           </div>
-          
           <button @click="openAllModal" class="w-full px-4 py-3 bg-slate-50/50 border-t border-slate-100 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition flex items-center justify-center gap-1.5">
             Lihat Semua <i class="ph-bold ph-arrow-right"></i>
           </button>
@@ -79,12 +75,7 @@
       </div>
 
       <!-- Tombol Pengaturan Cronjob Pembersihan Otomatis -->
-      <button 
-        @click.stop="openCleanupModal" 
-        title="Pengaturan Cronjob Pembersihan Log & Riwayat Gangguan"
-        class="w-9 h-9 flex items-center justify-center bg-white text-slate-600 rounded-full hover:bg-slate-50 hover:text-slate-900 border border-slate-200 transition relative shadow-sm"
-        :class="showCleanupModal ? 'bg-slate-50 text-slate-900 border-slate-300' : ''"
-      >
+      <button @click.stop="openCleanupModal" title="Pengaturan Cronjob Pembersihan Log & Riwayat Gangguan" class="w-9 h-9 flex items-center justify-center bg-white text-slate-600 rounded-full hover:bg-slate-50 hover:text-slate-900 border border-slate-200 transition relative shadow-sm" :class="showCleanupModal ? 'bg-slate-50 text-slate-900 border-slate-300' : ''" >
         <i class="ph ph-gear text-lg"></i>
       </button>
     </div>
@@ -94,7 +85,6 @@
   <Teleport to="body">
     <div v-if="showCleanupModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="showCleanupModal = false">
       <div class="bg-white border border-slate-200/80 rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-        
         <!-- Modal Header -->
         <div class="px-6 py-4 bg-slate-50/50 border-b border-slate-200/80 rounded-t-2xl flex items-center justify-between shrink-0">
           <div>
@@ -111,11 +101,9 @@
         <!-- Modal Body -->
         <div class="p-6 overflow-y-auto flex-1 space-y-5">
           <!-- Feedback Alert -->
-          <div v-if="cleanupFeedback.message" class="px-4 py-3 rounded-lg border text-xs font-semibold flex items-center justify-between" 
-               :class="cleanupFeedback.isError ? 'bg-rose-50 border-rose-200/60 text-rose-700' : 'bg-emerald-50 border-emerald-200/60 text-emerald-700'">
+          <div v-if="cleanupFeedback.message" class="px-4 py-3 rounded-lg border text-xs font-semibold flex items-center justify-between" :class="cleanupFeedback.isError ? 'bg-rose-50 border-rose-200/60 text-rose-700' : 'bg-emerald-50 border-emerald-200/60 text-emerald-700'">
             <span class="flex items-center gap-2">
-              <i class="ph-bold" :class="cleanupFeedback.isError ? 'ph-warning-circle' : 'ph-check-circle'"></i> 
-              {{ cleanupFeedback.message }}
+              <i class="ph-bold" :class="cleanupFeedback.isError ? 'ph-warning-circle' : 'ph-check-circle'"></i> {{ cleanupFeedback.message }}
             </span>
             <button @click="cleanupFeedback.message = ''" class="hover:opacity-75 transition">
               <i class="ph-bold ph-x"></i>
@@ -134,12 +122,7 @@
                     </div>
                     <p class="text-[11px] text-slate-500 mt-0.5">Tabel <code class="text-slate-700 bg-slate-50 border border-slate-200 px-1 rounded">system_logs</code> (<span class="font-mono font-bold">{{ cleanupForm.system_logs.current_count }}</span> baris)</p>
                   </div>
-                  <button 
-                    type="button" 
-                    @click="cleanupForm.system_logs.is_enabled = !cleanupForm.system_logs.is_enabled" 
-                    class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition" 
-                    :class="cleanupForm.system_logs.is_enabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : 'bg-slate-50 text-slate-500 border-slate-200'"
-                  >
+                  <button type="button" @click="cleanupForm.system_logs.is_enabled = !cleanupForm.system_logs.is_enabled" class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition" :class="cleanupForm.system_logs.is_enabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : 'bg-slate-50 text-slate-500 border-slate-200'" >
                     {{ cleanupForm.system_logs.is_enabled ? 'Aktif' : 'Nonaktif' }}
                   </button>
                 </div>
@@ -184,13 +167,8 @@
                   <p class="flex justify-between"><span>Terakhir jalan:</span> <span class="text-slate-700 font-semibold font-mono tracking-tight">{{ formatTime(cleanupForm.system_logs.last_run) }}</span></p>
                   <p class="flex justify-between"><span>Jadwal berikutnya:</span> <span class="font-semibold font-mono tracking-tight" :class="cleanupForm.system_logs.is_enabled ? 'text-slate-900' : 'text-slate-400'">{{ cleanupForm.system_logs.is_enabled ? formatTime(cleanupForm.system_logs.next_run) : 'Nonaktif' }}</span></p>
                 </div>
-                <button 
-                  type="button" 
-                  @click="triggerManualCleanup('system_logs')" 
-                  :disabled="isRunningManual === 'system_logs'" 
-                  class="w-full py-2 px-3 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                >
-                  <i class="ph-bold" :class="isRunningManual === 'system_logs' ? 'ph-spinner animate-spin' : 'ph-trash'"></i> 
+                <button type="button" @click="triggerManualCleanup('system_logs')" :disabled="isRunningManual === 'system_logs'" class="w-full py-2 px-3 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" >
+                  <i class="ph-bold" :class="isRunningManual === 'system_logs' ? 'ph-spinner animate-spin' : 'ph-trash'"></i>
                   {{ isRunningManual === 'system_logs' ? 'Membersihkan Log...' : 'Bersihkan Seluruh Log Sekarang' }}
                 </button>
               </div>
@@ -207,12 +185,7 @@
                     </div>
                     <p class="text-[11px] text-slate-500 mt-0.5">Tiket Selesai &amp; Down History (<span class="font-mono font-bold">{{ cleanupForm.incident_history.current_count }}</span> riwayat)</p>
                   </div>
-                  <button 
-                    type="button" 
-                    @click="cleanupForm.incident_history.is_enabled = !cleanupForm.incident_history.is_enabled" 
-                    class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition" 
-                    :class="cleanupForm.incident_history.is_enabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : 'bg-slate-50 text-slate-500 border-slate-200'"
-                  >
+                  <button type="button" @click="cleanupForm.incident_history.is_enabled = !cleanupForm.incident_history.is_enabled" class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border transition" :class="cleanupForm.incident_history.is_enabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : 'bg-slate-50 text-slate-500 border-slate-200'" >
                     {{ cleanupForm.incident_history.is_enabled ? 'Aktif' : 'Nonaktif' }}
                   </button>
                 </div>
@@ -258,13 +231,8 @@
                   <p class="flex justify-between"><span>Terakhir jalan:</span> <span class="text-slate-700 font-semibold font-mono tracking-tight">{{ formatTime(cleanupForm.incident_history.last_run) }}</span></p>
                   <p class="flex justify-between"><span>Jadwal berikutnya:</span> <span class="font-semibold font-mono tracking-tight" :class="cleanupForm.incident_history.is_enabled ? 'text-slate-900' : 'text-slate-400'">{{ cleanupForm.incident_history.is_enabled ? formatTime(cleanupForm.incident_history.next_run) : 'Nonaktif' }}</span></p>
                 </div>
-                <button 
-                  type="button" 
-                  @click="triggerManualCleanup('incident_history')" 
-                  :disabled="isRunningManual === 'incident_history'" 
-                  class="w-full py-2 px-3 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                >
-                  <i class="ph-bold" :class="isRunningManual === 'incident_history' ? 'ph-spinner animate-spin' : 'ph-trash'"></i> 
+                <button type="button" @click="triggerManualCleanup('incident_history')" :disabled="isRunningManual === 'incident_history'" class="w-full py-2 px-3 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" >
+                  <i class="ph-bold" :class="isRunningManual === 'incident_history' ? 'ph-spinner animate-spin' : 'ph-trash'"></i>
                   {{ isRunningManual === 'incident_history' ? 'Membersihkan Riwayat...' : 'Bersihkan Riwayat Selesai Sekarang' }}
                 </button>
               </div>
@@ -274,20 +242,11 @@
 
         <!-- Modal Footer -->
         <div class="px-6 py-4 bg-slate-50/50 border-t border-slate-200/80 rounded-b-2xl flex justify-end items-center gap-3 shrink-0">
-          <button 
-            type="button" 
-            @click="showCleanupModal = false" 
-            class="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg text-xs font-semibold transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-          >
+          <button type="button" @click="showCleanupModal = false" class="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg text-xs font-semibold transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]" >
             Tutup
           </button>
-          <button 
-            type="button" 
-            @click="saveCleanupConfig" 
-            :disabled="isSavingCleanup" 
-            class="px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-          >
-            <i class="ph-bold" :class="isSavingCleanup ? 'ph-spinner animate-spin' : 'ph-floppy-disk'"></i> 
+          <button type="button" @click="saveCleanupConfig" :disabled="isSavingCleanup" class="px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]" >
+            <i class="ph-bold" :class="isSavingCleanup ? 'ph-spinner animate-spin' : 'ph-floppy-disk'"></i>
             {{ isSavingCleanup ? 'Menyimpan...' : 'Simpan Pengaturan Cronjob' }}
           </button>
         </div>
@@ -299,7 +258,6 @@
   <Teleport to="body">
     <div v-if="showModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="showModal = false">
       <div class="bg-white border border-slate-200/80 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
-        
         <div class="px-6 py-4 bg-slate-50/50 border-b border-slate-200/80 rounded-t-2xl flex items-center justify-between shrink-0">
           <div>
             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -314,19 +272,11 @@
 
         <!-- Tab: Gangguan Aktif / Riwayat Selesai -->
         <div class="px-6 pt-3 border-b border-slate-200/80 flex gap-6 shrink-0 bg-white">
-          <button 
-            @click="activeTab = 'active'" 
-            class="pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition flex items-center gap-2" 
-            :class="activeTab === 'active' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'"
-          >
+          <button @click="activeTab = 'active'" class="pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition flex items-center gap-2" :class="activeTab === 'active' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'" >
             <i class="ph-bold ph-warning" :class="activeTab === 'active' ? 'text-rose-500' : ''"></i> Gangguan Aktif
             <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono" :class="activeTab === 'active' ? 'bg-rose-50 text-rose-700 border border-rose-200/60' : 'bg-slate-50 text-slate-500 border border-slate-200'">{{ alerts.length }}</span>
           </button>
-          <button 
-            @click="activeTab = 'history'" 
-            class="pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition flex items-center gap-2" 
-            :class="activeTab === 'history' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'"
-          >
+          <button @click="activeTab = 'history'" class="pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition flex items-center gap-2" :class="activeTab === 'history' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'" >
             <i class="ph-bold ph-check-circle" :class="activeTab === 'history' ? 'text-emerald-500' : ''"></i> Riwayat Selesai
             <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono" :class="activeTab === 'history' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-slate-50 text-slate-500 border border-slate-200'">{{ history.length }}</span>
           </button>
@@ -397,6 +347,64 @@
       </div>
     </div>
   </Teleport>
+
+   <!-- Popup Simulasi Alarm (Call/Pesan) -->
+  <Teleport to="body">
+    <div v-if="showSimulateModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="showSimulateModal = false">
+      <div class="bg-white border border-slate-200/80 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+        <!-- Header -->
+        <div class="px-6 py-4 bg-slate-50/50 border-b border-slate-200/80 flex items-center justify-between">
+          <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+            <i class="ph-bold ph-flask text-indigo-500"></i> Simulasi Alarm
+          </h3>
+          <button @click="showSimulateModal = false" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition">
+            <i class="ph-bold ph-x text-lg"></i>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6">
+          <p class="text-[13px] text-slate-600 mb-5 leading-relaxed">
+            Gunakan panel ini untuk menguji notifikasi <span class="font-bold">Pesan (Warning)</span> atau panggilan darurat <span class="font-bold">CallKit (Down)</span> ke perangkat teknisi tanpa membuat tiket palsu di database.
+          </p>
+
+          <div class="flex gap-4">
+             <button 
+                @click="triggerSimulasi('Pesan')" 
+                :disabled="isTesting"
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-lg text-sm font-semibold transition disabled:opacity-50"
+              >
+                <i v-if="isTestingType === 'Pesan'" class="ph-bold ph-spinner animate-spin text-lg"></i>
+                <i v-else class="ph-bold ph-bell-ringing text-lg"></i> 
+                Uji Notifikasi
+              </button>
+              
+              <button 
+                @click="triggerSimulasi('Call')" 
+                :disabled="isTesting"
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 rounded-lg text-sm font-semibold transition disabled:opacity-50"
+              >
+                <i v-if="isTestingType === 'Call'" class="ph-bold ph-spinner animate-spin text-lg"></i>
+                <i v-else class="ph-bold ph-phone-call text-lg"></i> 
+                Uji CallKit
+              </button>
+          </div>
+
+          <div v-if="testResult" class="mt-4 flex items-start gap-2 text-[13px] font-medium text-slate-700 bg-slate-50 px-4 py-3 rounded-lg border border-slate-200 animate-fade-in">
+             <i class="ph-bold ph-info text-indigo-500 mt-0.5 shrink-0 text-base"></i> 
+             <span class="break-words">{{ testResult }}</span>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 bg-slate-50/50 border-t border-slate-200/80 flex justify-end">
+          <button @click="showSimulateModal = false" class="px-5 py-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg text-xs font-semibold transition">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -410,9 +418,12 @@ let timer = null;
 const updateClock = () => {
   // Selalu pakai zona waktu Asia/Jakarta, tidak bergantung zona waktu perangkat
   const time = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
   }).format(new Date());
-  
   currentTime.value = `${time} WIB`;
 };
 
@@ -426,24 +437,10 @@ const cleanupFeedback = ref({ message: '', isError: false });
 
 const cleanupForm = ref({
   system_logs: {
-    is_enabled: true,
-    interval_value: 7,
-    interval_unit: 'DAYS',
-    retention_mode: 'OLDER_THAN',
-    last_run: null,
-    next_run: null,
-    last_deleted_count: 0,
-    current_count: 0
+    is_enabled: true, interval_value: 7, interval_unit: 'DAYS', retention_mode: 'OLDER_THAN', last_run: null, next_run: null, last_deleted_count: 0, current_count: 0
   },
   incident_history: {
-    is_enabled: true,
-    interval_value: 30,
-    interval_unit: 'DAYS',
-    retention_mode: 'OLDER_THAN',
-    last_run: null,
-    next_run: null,
-    last_deleted_count: 0,
-    current_count: 0
+    is_enabled: true, interval_value: 30, interval_unit: 'DAYS', retention_mode: 'OLDER_THAN', last_run: null, next_run: null, last_deleted_count: 0, current_count: 0
   }
 });
 
@@ -489,6 +486,7 @@ const saveCleanupConfig = async () => {
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.message || 'Gagal menyimpan pengaturan');
+    
     await fetchCleanupConfig();
     cleanupFeedback.value = { message: json.message || 'Pengaturan cronjob berhasil disimpan.', isError: false };
   } catch (err) {
@@ -502,6 +500,7 @@ const triggerManualCleanup = async (targetKey) => {
   if (isRunningManual.value) return;
   isRunningManual.value = targetKey;
   cleanupFeedback.value = { message: '', isError: false };
+  
   try {
     const res = await fetch('/api/settings/cleanup/run', {
       method: 'POST',
@@ -510,6 +509,7 @@ const triggerManualCleanup = async (targetKey) => {
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.message || 'Gagal menjalankan pembersihan');
+    
     await fetchCleanupConfig();
     fetchHistory();
     cleanupFeedback.value = { message: json.message, isError: false };
@@ -579,9 +579,11 @@ const formatDuration = (start, end) => {
   if (!start || !end) return '-';
   const diffMin = Math.max(0, Math.round((parseUtcDate(end) - parseUtcDate(start)) / 60000));
   if (diffMin < 1) return '< 1 menit';
+  
   const d = Math.floor(diffMin / 1440);
   const h = Math.floor((diffMin % 1440) / 60);
   const m = diffMin % 60;
+  
   return [d && `${d} hari`, h && `${h} jam`, m && `${m} menit`].filter(Boolean).join(' ');
 };
 
@@ -610,12 +612,49 @@ const handleClickOutside = (e) => {
   }
 };
 
+// ==========================================
+// SIMULASI ALARM (FCM & CALLKIT)
+// ==========================================
+const showSimulateModal = ref(false);
+const isTesting = ref(false);
+const isTestingType = ref('');
+const testResult = ref('');
+
+const openSimulateModal = () => {
+    showSimulateModal.value = true;
+    testResult.value = '';
+    isTesting.value = false;
+    isTestingType.value = '';
+};
+
+const triggerSimulasi = async (type) => {
+    isTesting.value = true;
+    isTestingType.value = type;
+    testResult.value = 'Menghubungi server...';
+    
+    try {
+        const res = await fetch('/api/auth/simulate-fcm', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action_type: type })
+        });
+        const data = await res.json();
+        testResult.value = data.message || 'Simulasi terkirim.';
+    } catch (err) {
+        testResult.value = 'Gagal mengirim instruksi simulasi ke server.';
+    } finally {
+        isTesting.value = false;
+        isTestingType.value = '';
+    }
+};
+
 onMounted(() => {
   updateClock(); // Set waktu pertama kali agar tidak kosong sesaat
   timer = setInterval(updateClock, 1000); // Jalankan fungsi update setiap 1000ms (1 detik)
-
+  
   fetchAlerts(false);
   alertTimer = setInterval(pollRealtimeNotifications, 3000); // Realtime polling tiap 3 detik
+  
   document.addEventListener('click', handleClickOutside);
 });
 

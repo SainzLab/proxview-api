@@ -1,5 +1,6 @@
 import db from '../config/database.js';
 import { getTokenExpiryMs } from '../config/timezone.js';
+import { getMessaging } from 'firebase-admin/messaging';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -209,5 +210,37 @@ export const mobileLogin = async (req, res) => {
         console.error("Error mobileLogin:", error);
         await addSystemLog('ERROR', 'MOBILE_AUTH', `Terjadi kesalahan sistem saat percobaan login Mobile '${username}'. ${clientInfo}`);
         res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server saat login.' });
+    }
+};
+
+export const simulateFCM = async (req, res) => {
+    const { action_type } = req.body; // 'Call' atau 'Pesan'
+    
+    try {
+        const [techs] = await db.query("SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL AND is_active = 1");
+        const cleanTokens = [...new Set(techs.map(t => t.fcm_token?.trim()).filter(Boolean))];
+
+        if (cleanTokens.length === 0) {
+            return res.status(404).json({ success: false, message: 'Tidak ada token teknisi.' });
+        }
+
+        const fcmPayload = {
+            tokens: cleanTokens,
+            data: {
+                alert_id: "TEST-000",
+                target_name: "SERVER UJI COBA (SIMULASI)",
+                severity: action_type === 'Call' ? 'DOWN' : 'WARNING',
+                action_type: action_type, 
+                message: `[SIMULASI] Uji coba sistem untuk aksi: ${action_type}.`,
+                click_action: "FLUTTER_NOTIFICATION_CLICK"
+            },
+            android: { priority: 'high' }
+        };
+
+        const response = await getMessaging().sendEachForMulticast(fcmPayload);
+        res.json({ success: true, message: `Simulasi ${action_type} terkirim ke ${response.successCount} perangkat.` });
+    } catch (error) {
+        console.error('[SIMULASI ERROR]', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 };

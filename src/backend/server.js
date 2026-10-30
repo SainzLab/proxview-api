@@ -23,7 +23,7 @@ try {
 }
 // =============================================
 
-import { login, logout, mobileLogin } from './controllers/authController.js';
+import { login, logout, mobileLogin, simulateFCM } from './controllers/authController.js';
 import { getUsers, createUser, updateUser, deleteUser, getToken, resetToken, toggleUserStatus } from './controllers/userController.js';
 import { getTargets, createTarget, updateTarget, deleteTarget, toggleTargetStatus, getTargetHistory, getSystemStatus } from './controllers/targetController.js';
 import { startMonitoringDaemon } from './services/monitoringDaemon.js';
@@ -167,6 +167,9 @@ app.get('/api/mobile/v1/proxmox/logs/tasks', verifyApiToken, getTasksLog);
 app.get('/api/mobile/v1/proxmox/logs/cluster', verifyApiToken, getClusterLog);
 app.get('/api/mobile/v1/proxmox/logs/task-detail', verifyApiToken, getTaskDetailLog);
 app.get('/api/mobile/v1/logs/system', verifyApiToken, getSystemLogs);
+
+// Sisipkan di antara endpoint yang sudah ada
+app.post('/api/auth/simulate-fcm', simulateFCM);
 
 // Route Utama SPA
 app.get(/^(?!\/api).*/, (req, res) => {

@@ -93,7 +93,6 @@ const checkTcp = (ip, port) => {
     });
 };
 
-// ==========================================
 // MESIN NOTIFIKASI & TIKET OTOMATIS (STATE ENGINE)
 // ==========================================
 const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', maxCount = 1, message = '') => {
@@ -112,6 +111,7 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
 
     if (state.failCount >= thresholdCount) {
         let currentAlertId = null;
+        let isEscalatedOrUpdated = false; // FLAG BARU: Deteksi perubahan status untuk memicu FCM ulang
 
         try {
             const [existing] = await db.query(
@@ -127,12 +127,12 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
                     `INSERT INTO active_alerts (target_id, target_type, target_name, severity, original_severity, action_type, message) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                     [target.id, moduleType, targetDisplayName, severity, severity, safeAction, message]
                 );
-
                 currentAlertId = result.insertId;
+                
                 const ticketId = `#INC-${getWibYear()}-${String(currentAlertId).padStart(4, '0')}`;
                 const logMsg = `Tiket ${ticketId} otomatis dibuat: [${moduleType}] ${targetDisplayName} berstatus ${severity} (${message})`;
                 console.log(`[ALERT TRIGGERED] ${logMsg}`);
-
+                
                 await addDaemonLog(logLevel, logMsg);
             } else {
                 const currentAlert = existing[0];
@@ -143,10 +143,13 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
                 const highestOriginal = newRank > origRank ? severity : (currentAlert.original_severity || severity);
 
                 if (currentAlert.severity !== severity) {
+                    // TERJADI PERUBAHAN STATUS (ESKALASI/PENURUNAN)
                     await db.query(
                         `UPDATE active_alerts SET target_name = ?, severity = ?, original_severity = ?, action_type = ?, message = ? WHERE id = ?`,
                         [targetDisplayName, severity, highestOriginal, safeAction, message, currentAlertId]
                     );
+                    
+                    isEscalatedOrUpdated = true; // Set flag menjadi TRUE agar FCM ditembakkan ulang
 
                     const ticketId = `#INC-${getWibYear()}-${String(currentAlertId).padStart(4, '0')}`;
                     let logMsg;
@@ -172,21 +175,24 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
             return; // Hentikan eksekusi FCM jika insert DB gagal
         }
 
-        // HANYA TEMBAKKAN FCM SAAT PERTAMA KALI MELEWATI THRESHOLD
-        if (state.failCount === thresholdCount) {
+        // HANYA TEMBAKKAN FCM SAAT PERTAMA KALI MELEWATI THRESHOLD ATAU SAAT STATUS MEMBURUK/ESKALASI
+        if (state.failCount === thresholdCount || isEscalatedOrUpdated) {
             try {
                 // Ambil token teknisi yang aktif (kecuali Kepala Bidang)
                 const [techs] = await db.query("SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL AND role != 'Kepala Bidang' AND is_active = 1");
-                const tokens = techs.map(t => t.fcm_token);
+                
+                // Sanitasi: Buang token null/kosong dan hapus duplikasi token perangkat yang sama
+                const rawTokens = techs.map(t => t.fcm_token?.trim());
+                const cleanTokens = [...new Set(rawTokens.filter(Boolean))];
 
-                if (tokens.length > 0) {
+                if (cleanTokens.length > 0) {
                     const fcmPayload = {
-                        tokens: tokens,
+                        tokens: cleanTokens,
                         data: {
                             alert_id: String(currentAlertId),
                             target_name: targetDisplayName,
                             severity: severity,
-                            action_type: safeAction, 
+                            action_type: safeAction,
                             message: message,
                             click_action: "FLUTTER_NOTIFICATION_CLICK"
                         },
@@ -195,9 +201,8 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
                         }
                     };
                     
-                    // Ganti sendMulticast menjadi sendEachForMulticast
                     getMessaging().sendEachForMulticast(fcmPayload)
-                        .then(res => console.log(`[FCM] Push terkirim ke ${res.successCount} perangkat untuk alert #${currentAlertId}.`))
+                        .then(res => console.log(`[FCM] Push terkirim ke ${res.successCount} perangkat (Alert #${currentAlertId} | Status: ${severity}).`))
                         .catch(err => console.error(`[FCM ERROR] Gagal mengirim pesan multicast:`, err));
                 }
             } catch (fcmDbErr) {
