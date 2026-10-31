@@ -42,6 +42,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === 'production';
+app.use(express.static(path.join(__dirname, '../public/dist')));
 
 // Helper pembaca manifest hasil build Vite untuk mode Production / Staging
 const resolveViteManifestAssets = () => {
