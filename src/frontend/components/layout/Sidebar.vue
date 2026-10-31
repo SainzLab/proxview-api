@@ -4,7 +4,7 @@
     <!-- Logo -->
     <div class="p-5 flex flex-col items-start border-b border-slate-100 mb-2">
         <img 
-            src="/diskominfosubang.png" 
+            src="https://cdn.sainzlab.my.id/sainzlab-storage/diskominfosubang.png" 
             alt="Logo Diskominfo Subang" 
             class="h-16 object-contain mb-3 filter drop-shadow-[0_4px_5px_rgba(0,0,0,0.4)] drop-shadow-[0_2px_6px_rgba(0,0,0,0.15)]"
         >

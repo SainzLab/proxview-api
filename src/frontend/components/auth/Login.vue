@@ -89,7 +89,7 @@
                 <div class="text-center z-10 px-12 relative flex flex-col items-center">
                     <!-- PERBAIKAN: Menambahkan drop-shadow hitam pekat agar teks putih terbaca -->
                     <img 
-                        src="/diskominfosubang.png" 
+                        src="https://cdn.sainzlab.my.id/sainzlab-storage/diskominfosubang.png" 
                         alt="Logo Diskominfo Subang" 
                         class="h-24 object-contain mb-8 filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] drop-shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
                     >
