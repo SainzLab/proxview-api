@@ -37,6 +37,8 @@ import { getIncidents, getIncidentStats, joinIncident, resolveIncident, getAnaly
 import { getCleanupSettings, saveCleanupSettings, runManualCleanup } from './controllers/cleanupController.js';
 import { getDashboardSummary } from './controllers/dashboardController.js';
 import { exportIncidentsPdf, exportDashboardPdf, exportPdf } from './controllers/exportController.js';
+import { runTraceroute, runPing, runIpScan } from './controllers/toolsController.js';
+import mobileToolsRoutes from './routes/mobileToolsRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -142,6 +144,11 @@ app.get('/api/analytics', attachMobileUserIfPresent, getAnalytics);
 app.post('/api/incidents/join', attachMobileUserIfPresent, joinIncident);
 app.post('/api/incidents/resolve', attachMobileUserIfPresent, resolveIncident);
 
+// Route Network Tools
+app.post('/api/tools/traceroute', verifyWebAuth, runTraceroute);
+app.post('/api/tools/ping', verifyWebAuth, runPing);
+app.post('/api/tools/ipscan', verifyWebAuth, runIpScan);
+
 // Route Export PDF Laporan (Mendukung Web Cookie & Bearer Token)
 app.get('/api/export/pdf/incidents', attachMobileUserIfPresent, exportIncidentsPdf);
 app.get('/api/export/pdf/dashboard', attachMobileUserIfPresent, exportDashboardPdf);
@@ -176,6 +183,10 @@ app.get('/api/mobile/v1/logs/system', verifyApiToken, getSystemLogs);
 app.get('/api/mobile/v1/export/pdf', verifyApiToken, exportPdf);
 app.get('/api/mobile/v1/export/pdf/incidents', verifyApiToken, exportIncidentsPdf);
 app.get('/api/mobile/v1/export/pdf/dashboard', verifyApiToken, exportDashboardPdf);
+
+// Route Network Tools khusus Mobile (JSON Response utuh via child_process.exec)
+app.use('/api/mobile/tools', verifyApiToken, mobileToolsRoutes);
+app.use('/api/mobile/v1/tools', verifyApiToken, mobileToolsRoutes);
 
 // Sisipkan di antara endpoint yang sudah ada
 app.post('/api/auth/simulate-fcm', simulateFCM);

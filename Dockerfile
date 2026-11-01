@@ -16,8 +16,8 @@ RUN npm run build
 # ------------------------------------
 FROM node:22-alpine AS production
 
-# iputils-ping diperlukan oleh package "ping"
-RUN apk add --no-cache iputils
+# iputils-ping diperlukan oleh package "ping" & fitur Network Tools (ping, traceroute, nmap)
+RUN apk add --no-cache iputils traceroute nmap
 
 WORKDIR /app
 

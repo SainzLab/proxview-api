@@ -10,7 +10,7 @@
     >
       <div 
         v-if="show" 
-        class="fixed top-8 right-8 z-[1100] w-[400px] bg-white border border-slate-200 shadow-xl rounded-xl p-4 flex gap-4 font-sans"
+        class="fixed top-8 right-8 z-[1200] w-[400px] bg-white border border-slate-200 shadow-xl rounded-xl p-4 flex gap-4 font-sans"
         role="alert"
         aria-live="assertive"
       >

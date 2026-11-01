@@ -139,13 +139,15 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { useRoute } from 'vue-router';
 import { formatWibDateTime } from '../../utils/datetime.js';
 
 defineEmits(['change-view']);
 
 const BATCH_SIZE = 30;
 const isLoading = ref(false);
-const searchQuery = ref('');
+const route = useRoute();
+const searchQuery = ref(typeof route.query.q === 'string' ? route.query.q : '');
 const filterLevel = ref('ALL');
 const logs = ref([]);
 const totalDbLogs = ref(0);

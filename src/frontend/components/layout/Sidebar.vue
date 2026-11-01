@@ -85,6 +85,17 @@
 
           <li>
             <router-link
+              to="/tools"
+              :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition',
+                       route.name === 'NetworkTools' || route.path === '/tools' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ]"
+            >
+              <div class="flex items-center gap-3"><i class="ph ph-terminal-window text-lg"></i> Network Tools</div>
+            </router-link>
+          </li>
+
+          <li>
+            <router-link
               to="/proxmox-config"
               :class="['flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition',
                        route.name === 'proxmox-config' ? 'bg-slate-900 text-white font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'

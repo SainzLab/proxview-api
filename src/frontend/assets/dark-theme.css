@@ -74,14 +74,20 @@ html.dark textarea:focus {
 }
 
 /* 5. Tombol Utama & Navigasi Aktif (bg-slate-900) */
-html.dark .bg-slate-900 {
+html.dark .bg-slate-900:not(.terminal-panel) {
   background-color: #10b981 !important;
   color: #052e16 !important;
 }
 
-html.dark .bg-slate-900.text-white {
+html.dark .bg-slate-900:not(.terminal-panel).text-white {
   color: #052e16 !important;
   font-weight: 700 !important;
+}
+
+/* Panel Terminal / Console tetap gelap pekat di mode gelap */
+html.dark .terminal-panel {
+  background-color: #0f172a !important;
+  border: 1px solid #334155 !important;
 }
 
 html.dark .hover\:bg-slate-800:hover {

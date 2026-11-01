@@ -7,6 +7,7 @@ import ThresholdConfig from '@/components/dashboard/ThresholdConfig.vue';
 import ProxmoxConfig from '@/components/config/ProxmoxConfig.vue';
 import RekapGangguan from '@/components/dashboard/RekapGangguan.vue';
 import LogSystem from '@/components/dashboard/log.vue';
+import NetworkTools from '@/components/tools/NetworkTools.vue';
 
 const routes = [
     { path: '/', redirect: '/dashboard' },
@@ -18,6 +19,7 @@ const routes = [
     { path: '/proxmox-config', name: 'proxmox-config', component: ProxmoxConfig, meta: { requiresAuth: true } },
     { path: '/rekap-gangguan', name: 'rekap-gangguan', component: RekapGangguan, meta: { requiresAuth: true } },
     { path: '/log', name: 'Log', component: LogSystem, meta: { requiresAuth: true } },
+    { path: '/tools', name: 'NetworkTools', component: NetworkTools, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({
