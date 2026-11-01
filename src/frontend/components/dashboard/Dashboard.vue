@@ -50,7 +50,7 @@
       <!-- Widget 2: Server Proxmox VE -->
       <div class="bg-white border border-slate-200/80 p-5 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <div class="flex justify-between items-start mb-2">
-          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Server Proxmox VE</p>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Server Fisik</p>
           <div class="p-1.5 bg-slate-50 border border-slate-100 rounded-md text-slate-500"><i class="ph ph-hard-drives text-lg"></i></div>
         </div>
         <h3 
@@ -80,12 +80,19 @@
           <div class="p-1.5 bg-slate-50 border border-slate-100 rounded-md text-slate-500"><i class="ph ph-waves text-lg"></i></div>
         </div>
         <h3 class="text-3xl font-black text-slate-900 mb-1 font-mono tracking-tight flex items-baseline gap-2">
-          {{ summary.icmp.total }}
+          {{ summary.icmp.total }} 
           <span v-if="summary.icmp.down > 0" class="text-sm font-bold text-rose-600 font-sans tracking-normal">({{ summary.icmp.down }} RTO)</span>
-          <span v-else class="text-sm font-medium text-slate-500 font-sans tracking-normal">Target ({{ summary.icmp.up }} UP)</span>
+          <span v-else class="text-sm font-medium text-slate-500 font-sans tracking-normal">Target Aktif</span>
         </h3>
-        <div class="flex items-center gap-1.5 text-xs text-slate-500 mt-4">
-          <i class="ph ph-clock-counter-clockwise"></i> Avg Latency: <span class="text-slate-900 font-semibold font-mono tracking-tight">{{ summary.icmp.avg_latency_ms }} ms</span>
+        <div class="flex items-center justify-between text-xs mt-4">
+          <span v-if="summary.icmp.down === 0 && summary.icmp.active > 0" class="flex items-center gap-1.5 text-emerald-600 font-semibold">
+            <i class="ph-bold ph-check"></i> OK ({{ summary.icmp.up }} UP)
+          </span>
+          <span v-else-if="summary.icmp.down > 0" class="flex items-center gap-1.5 text-rose-600 font-semibold">
+            <i class="ph-bold ph-warning"></i> {{ summary.icmp.down }} Target Terputus
+          </span>
+          <span v-else class="text-slate-500">Belum ada target aktif</span>
+          <span class="text-slate-500">Avg: <strong class="text-slate-900 font-mono tracking-tight">{{ summary.icmp.avg_latency_ms }} ms</strong></span>
         </div>
       </div>
 
@@ -96,7 +103,7 @@
           <div class="p-1.5 bg-slate-50 border border-slate-100 rounded-md text-slate-500"><i class="ph ph-cpu text-lg"></i></div>
         </div>
         <h3 class="text-3xl font-black text-slate-900 mb-1 font-mono tracking-tight flex items-baseline gap-2">
-          {{ summary.tcp.total }}
+          {{ summary.tcp.total }} 
           <span v-if="summary.tcp.down > 0" class="text-sm font-bold text-rose-600 font-sans tracking-normal">({{ summary.tcp.down }} Down)</span>
           <span v-else class="text-sm font-medium text-slate-500 font-sans tracking-normal">Port Aktif</span>
         </h3>
@@ -161,7 +168,7 @@
       <div class="flex flex-wrap justify-between items-center gap-4 mb-5">
         <div>
           <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <i class="ph-bold ph-chart-bar text-slate-500"></i> Analitik Kinerja SLA (Uptime, Downtime, MTTR &amp; Availability)
+            <i class="ph-bold ph-chart-bar text-slate-500"></i> Analitik Kinerja (Uptime, Downtime, MTTR &amp; Availability)
           </h3>
           <p class="text-xs text-slate-500 mt-1">
             Rekap keandalan sistem &bull; {{ slaFilterLabel }}
@@ -193,12 +200,19 @@
           <h4 class="text-2xl font-black text-slate-900 font-mono tracking-tight leading-none">{{ formatPreciseDuration(slaAnalytics.summary.total_uptime_sec) }}</h4>
           <p class="text-[11px] text-slate-500 mt-2">Waktu sistem beroperasi normal</p>
         </div>
-        <div class="bg-slate-50 border border-slate-100 rounded-xl p-4">
+        <!-- TOTAL DOWNTIME / GANGGUAN (DINAMIS) -->
+        <div class="bg-slate-50 border border-slate-100 rounded-xl p-4 transition-colors">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-            <i class="ph-bold ph-arrow-circle-down text-rose-500"></i> Total Downtime
+            <i class="ph-bold ph-arrow-circle-down" :class="slaSeverity === 'CRITICAL' || slaSeverity === 'WARNING' ? 'text-amber-500' : 'text-rose-500'"></i>
+            {{ slaSeverity === 'ALL' ? 'Total Downtime & Gangguan' : (slaSeverity === 'DOWN' ? 'Total Downtime' : 'Total Gangguan') }}
           </p>
-          <h4 class="text-2xl font-black text-slate-900 font-mono tracking-tight leading-none">{{ formatPreciseDuration(slaAnalytics.summary.total_downtime_sec) }}</h4>
-          <p class="text-[11px] text-slate-500 mt-2">Gangguan (<span class="font-mono font-semibold">{{ slaAnalytics.summary.incident_count }}</span> insiden)</p>
+          <h4 class="text-2xl font-black text-slate-900 font-mono tracking-tight leading-none">
+            {{ formatPreciseDuration(slaAnalytics.summary.total_downtime_sec) }}
+          </h4>
+          <p class="text-[11px] text-slate-500 mt-2">
+            {{ slaSeverity === 'ALL' ? 'Waktu insiden' : (slaSeverity === 'DOWN' ? 'Waktu downtime' : 'Performa menurun') }} 
+            (<span class="font-mono font-semibold">{{ slaAnalytics.summary.incident_count }}</span> insiden)
+          </p>
         </div>
         <div class="bg-slate-50 border border-slate-100 rounded-xl p-4">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">

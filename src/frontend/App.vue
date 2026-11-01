@@ -73,7 +73,7 @@
           </div>
           <h3 class="text-lg font-bold text-slate-900 mb-2 relative z-10 tracking-tight">Sesi Telah Berakhir</h3>
           <p class="text-sm text-slate-500 font-medium mb-6 relative z-10 leading-relaxed">
-            Sistem mendeteksi tidak ada aktivitas selama 1 menit. Demi keamanan server, Anda telah dikeluarkan secara otomatis.
+            Sistem mendeteksi tidak ada aktivitas selama 5 menit. Demi keamanan Anda telah dikeluarkan secara otomatis.
           </p>
           <button @click="confirmTimeout" class="w-full px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition shadow-sm relative z-10 flex justify-center items-center gap-2">
             Kembali ke Login <i class="ph-bold ph-arrow-right"></i>
@@ -120,19 +120,22 @@ const userRole = ref('');
 // FITUR AUTO-LOGOUT (INACTIVITY TIMEOUT)
 // ==========================================
 let timeoutTimer = null;
-const INACTIVITY_LIMIT = 60 * 1000; // 1 menit
+const INACTIVITY_LIMIT = 3000 * 1000; // 5 menit
 const showTimeoutModal = ref(false);
 let isAutoLogout = false;
 
+// Dieksekusi secara real-time saat pengguna diam
 const executeAutoLogout = () => {
-    if (route.name !== 'login' && !showTimeoutModal.value) {
+    const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
+    if (isAuthenticated && route.name !== 'login' && !showTimeoutModal.value) {
         showTimeoutModal.value = true;
         removeActivityListeners();
     }
 };
 
+// Aksi dari tombol "Kembali ke Login" pada modal timeout
 const confirmTimeout = () => {
-    isAutoLogout = true; 
+    isAutoLogout = true;
     showTimeoutModal.value = false;
     
     // Bersihkan sesi dan riwayat aktivitas
@@ -140,17 +143,19 @@ const confirmTimeout = () => {
     localStorage.removeItem('userData');
     localStorage.removeItem('lastActivity');
     
-    // (Opsional) Tembak API backend untuk mematikan cookie jika menggunakan httpOnly cookie
     fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-    
     router.push('/login');
 };
 
-// Fungsi gabungan: Catat waktu permanen + Reset timer lokal
 const updateActivityAndResetTimer = () => {
-    if (route.name === 'login' || showTimeoutModal.value) return;
+    const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
+    
+    // Matikan pencatatan jika belum login atau sedang di halaman login
+    if (route.name === 'login' || !isAuthenticated || showTimeoutModal.value) {
+        if (timeoutTimer) clearTimeout(timeoutTimer);
+        return;
+    }
 
-    // Catat stempel waktu ke penyimpanan permanen
     localStorage.setItem('lastActivity', Date.now().toString());
 
     if (timeoutTimer) clearTimeout(timeoutTimer);
@@ -159,11 +164,21 @@ const updateActivityAndResetTimer = () => {
 
 // Pengecekan saat halaman dimuat/refresh (mencegah bypass Ctrl+R)
 const checkInitialIdleState = () => {
-    if (route.name === 'login') return;
+    const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
+    if (route.name === 'login' || !isAuthenticated) return;
     
     const lastActivity = localStorage.getItem('lastActivity');
+    
+    // Jika batas waktu terlewati saat user me-refresh
     if (lastActivity && (Date.now() - parseInt(lastActivity)) > INACTIVITY_LIMIT) {
-        executeAutoLogout();
+        // PERBAIKAN: Langsung bersihkan sesi tanpa memunculkan modal
+        isAutoLogout = true;
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('lastActivity');
+        
+        fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        router.push('/login');
     }
 };
 
@@ -184,9 +199,13 @@ const removeActivityListeners = () => {
 };
 
 onMounted(() => {
-    checkInitialIdleState();
-    setupActivityListeners();
-    updateActivityAndResetTimer();
+    if (route.name === 'login') {
+        localStorage.removeItem('lastActivity');
+    } else {
+        checkInitialIdleState();
+        setupActivityListeners();
+        updateActivityAndResetTimer();
+    }
 });
 
 onUnmounted(() => {
@@ -200,6 +219,9 @@ watch(() => route.name, (newName, oldName) => {
         if (timeoutTimer) clearTimeout(timeoutTimer);
         removeActivityListeners();
         
+        localStorage.removeItem('lastActivity');
+        showTimeoutModal.value = false;
+        
         if (oldName && oldName !== 'login') {
             if (isAutoLogout) {
                 isAutoLogout = false;
@@ -209,11 +231,8 @@ watch(() => route.name, (newName, oldName) => {
             }
         }
     } else {
-        checkInitialIdleState();
-        setupActivityListeners();
-        updateActivityAndResetTimer();
-
         if (oldName === 'login') {
+            localStorage.setItem('lastActivity', Date.now().toString());
             const userData = JSON.parse(localStorage.getItem('userData') || '{}');
             if (userData.name) {
                 userName.value = userData.name;
@@ -222,6 +241,10 @@ watch(() => route.name, (newName, oldName) => {
                 setTimeout(() => { showSuccessToast.value = false; }, 5000);
             }
         }
+        
+        checkInitialIdleState();
+        setupActivityListeners();
+        updateActivityAndResetTimer();
     }
 });
 </script>

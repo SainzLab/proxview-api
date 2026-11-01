@@ -124,11 +124,18 @@
           <h3 class="text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.total_uptime_sec) }}</h3>
           <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">Waktu sistem beroperasi normal</p>
         </div>
-        <!-- TOTAL DOWNTIME -->
+        <!-- TOTAL DOWNTIME / GANGGUAN (DINAMIS) -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-rose-300 transition-colors">
-          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 relative z-10"><i class="ph-bold ph-arrow-circle-down text-rose-500"></i> Total Downtime</p>
-          <h3 class="text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.total_downtime_sec) }}</h3>
-          <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">Akumulasi seluruh waktu gangguan</p>
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 relative z-10">
+            <i class="ph-bold ph-arrow-circle-down" :class="analyticsSeverity === 'CRITICAL' || analyticsSeverity === 'WARNING' ? 'text-amber-500' : 'text-rose-500'"></i> 
+            {{ analyticsSeverity === 'ALL' ? 'Total Downtime & Gangguan' : (analyticsSeverity === 'DOWN' ? 'Total Downtime' : 'Total Gangguan') }}
+          </p>
+          <h3 class="text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">
+            {{ formatPreciseDuration(analytics.summary.total_downtime_sec) }}
+          </h3>
+          <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">
+            {{ analyticsSeverity === 'ALL' ? 'Akumulasi seluruh waktu insiden' : (analyticsSeverity === 'DOWN' ? 'Akumulasi seluruh waktu downtime' : 'Akumulasi waktu performa menurun') }}
+          </p>
         </div>
         <!-- MTTR -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-cyan-300 transition-colors">
