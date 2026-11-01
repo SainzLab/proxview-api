@@ -120,7 +120,7 @@ const userRole = ref('');
 // FITUR AUTO-LOGOUT (INACTIVITY TIMEOUT)
 // ==========================================
 let timeoutTimer = null;
-const INACTIVITY_LIMIT = 3000 * 1000; // 5 menit
+const INACTIVITY_LIMIT = 300 * 1000; // 5 menit
 const showTimeoutModal = ref(false);
 let isAutoLogout = false;
 
