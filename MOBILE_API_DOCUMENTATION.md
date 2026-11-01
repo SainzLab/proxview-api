@@ -1,5 +1,5 @@
 # Dokumentasi API Mobile: Network Tools & Export PDF
-**Sistem Monitoring ProxView (Helper API Viewmox)**
+**Sistem Monitoring ProxView (ProxView API)**
 
 Dokumentasi ini disusun khusus untuk tim pengembang **Frontend Mobile (Flutter / Android / iOS)** dalam mengintegrasikan fitur:
 1. **Network Tools** (`Ping`, `Traceroute`, `IP Scan`)

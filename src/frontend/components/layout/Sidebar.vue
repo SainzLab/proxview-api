@@ -9,7 +9,7 @@
             class="h-16 object-contain mb-3 filter drop-shadow-[0_4px_5px_rgba(0,0,0,0.4)] drop-shadow-[0_2px_6px_rgba(0,0,0,0.15)]"
         >
         <p class="text-[9px] text-slate-500 mt-1 uppercase tracking-widest font-bold">
-            Porxview Monitoring Proxmox
+            ProxView Monitoring Proxmox
         </p>
     </div>
 

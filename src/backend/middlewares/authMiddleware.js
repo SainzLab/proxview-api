@@ -6,7 +6,7 @@ import { getTokenExpiryMs } from '../config/timezone.js';
 // 1. MIDDLEWARE OTENTIKASI WEB (JWT COOKIE)
 // ==========================================
 export const verifyWebAuth = async (req, res, next) => {
-    const token = req.cookies?.mox_token;
+    const token = req.cookies?.proxview_token || req.cookies?.mox_token;
 
     if (!token) {
         return res.status(401).json({
@@ -64,7 +64,7 @@ export const requireAdmin = (req, res, next) => {
 
 // Helper opsional untuk melampirkan user dari cookie JWT jika ada (misal pada endpoint logout)
 export const attachWebUserIfPresent = async (req, res, next) => {
-    const token = req.cookies?.mox_token;
+    const token = req.cookies?.proxview_token || req.cookies?.mox_token;
     if (!token) return next();
 
     try {

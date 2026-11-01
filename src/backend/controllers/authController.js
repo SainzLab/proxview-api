@@ -76,7 +76,7 @@ export const login = async (req, res) => {
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '12h' });
 
         // 6. Set token ke HTTP-Only Cookie (aman untuk HTTP staging maupun HTTPS production)
-        res.cookie('mox_token', token, {
+        res.cookie('proxview_token', token, {
             httpOnly: true,
             secure: isHttpsRequest(req),
             sameSite: 'lax',
@@ -106,6 +106,11 @@ export const logout = async (req, res) => {
     const clientInfo = getClientInfo(req);
     try {
         const username = req.user ? req.user.username : 'Seorang pengguna';
+        res.clearCookie('proxview_token', {
+            httpOnly: true,
+            secure: isHttpsRequest(req),
+            sameSite: 'lax'
+        });
         res.clearCookie('mox_token', {
             httpOnly: true,
             secure: isHttpsRequest(req),

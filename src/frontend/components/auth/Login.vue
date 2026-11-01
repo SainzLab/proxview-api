@@ -177,7 +177,7 @@ const generateCaptcha = () => {
         ctx.restore();
     }
 
-    // Garis noise menggunakan warna hijau Moxgreen
+    // Garis noise menggunakan warna hijau ProxView
     for (let i = 0; i < 4; i++) {
         ctx.strokeStyle = '#10b981';
         ctx.lineWidth = 1.5;
