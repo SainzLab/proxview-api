@@ -25,48 +25,51 @@ const formatSec = (totalSeconds) => {
 // ==========================================
 // 1. AMBIL SEMUA TIKET (DASHBOARD)
 // ==========================================
+export const fetchIncidentsData = async () => {
+    const [rows] = await db.query(`
+        SELECT 
+            a.id, a.target_type, a.target_name, a.severity, a.original_severity, a.message, 
+            a.created_at, a.resolved_at, a.is_resolved,
+            GROUP_CONCAT(h.user_name SEPARATOR ', ') AS technicians,
+            MIN(h.joined_at) AS handled_at,
+            COUNT(h.id) AS handler_count,
+            TIMESTAMPDIFF(SECOND, a.created_at, IFNULL(a.resolved_at, CURRENT_TIMESTAMP)) AS downtime_sec,
+            TIMESTAMPDIFF(SECOND, MIN(h.joined_at), IFNULL(a.resolved_at, CURRENT_TIMESTAMP)) AS handling_sec
+        FROM active_alerts a
+        LEFT JOIN alert_handlers h ON a.id = h.alert_id
+        GROUP BY a.id
+        ORDER BY a.is_resolved ASC, a.created_at DESC
+    `);
+
+    return rows.map(row => {
+        let status = 'Gangguan Aktif';
+        if (row.is_resolved === 1) status = 'Selesai';
+        else if (row.handler_count > 0) status = 'Dalam Penanganan';
+
+        const year = getWibYear(row.created_at);
+        const ticketId = `#INC-${year}-${String(row.id).padStart(4, '0')}`;
+
+        return {
+            id: ticketId,
+            db_id: row.id,
+            time: row.created_at,
+            resolved_at: row.resolved_at,
+            title: row.message,
+            target: `${row.target_type} - ${row.target_name}`,
+            status: status,
+            severity: row.severity,
+            original_severity: row.original_severity || row.severity,
+            technicians: row.technicians || null,
+            is_resolved: row.is_resolved,
+            downtime_duration: formatSec(row.downtime_sec),
+            handling_duration: row.handled_at ? formatSec(row.handling_sec) : '-'
+        };
+    });
+};
+
 export const getIncidents = async (req, res) => {
     try {
-        const [rows] = await db.query(`
-            SELECT 
-                a.id, a.target_type, a.target_name, a.severity, a.original_severity, a.message, 
-                a.created_at, a.resolved_at, a.is_resolved,
-                GROUP_CONCAT(h.user_name SEPARATOR ', ') AS technicians,
-                MIN(h.joined_at) AS handled_at,
-                COUNT(h.id) AS handler_count,
-                TIMESTAMPDIFF(SECOND, a.created_at, IFNULL(a.resolved_at, CURRENT_TIMESTAMP)) AS downtime_sec,
-                TIMESTAMPDIFF(SECOND, MIN(h.joined_at), IFNULL(a.resolved_at, CURRENT_TIMESTAMP)) AS handling_sec
-            FROM active_alerts a
-            LEFT JOIN alert_handlers h ON a.id = h.alert_id
-            GROUP BY a.id
-            ORDER BY a.is_resolved ASC, a.created_at DESC
-        `);
-
-        const formattedTickets = rows.map(row => {
-            let status = 'Gangguan Aktif';
-            if (row.is_resolved === 1) status = 'Selesai';
-            else if (row.handler_count > 0) status = 'Dalam Penanganan';
-
-            const year = getWibYear(row.created_at);
-            const ticketId = `#INC-${year}-${String(row.id).padStart(4, '0')}`;
-
-            return {
-                id: ticketId,
-                db_id: row.id,
-                time: row.created_at,
-                resolved_at: row.resolved_at,
-                title: row.message,
-                target: `${row.target_type} - ${row.target_name}`,
-                status: status,
-                severity: row.severity,
-                original_severity: row.original_severity || row.severity,
-                technicians: row.technicians || null,
-                is_resolved: row.is_resolved,
-                downtime_duration: formatSec(row.downtime_sec),
-                handling_duration: row.handled_at ? formatSec(row.handling_sec) : '-'
-            };
-        });
-
+        const formattedTickets = await fetchIncidentsData();
         res.json({ success: true, data: formattedTickets });
     } catch (error) {
         console.error("Error getIncidents:", error);
@@ -243,101 +246,116 @@ const hitungMetrikITIL = (incidents, winStart, winEnd) => {
 
 const VALID_SEVERITIES = ['ALL', 'DOWN', 'CRITICAL', 'WARNING'];
 
+export const fetchAnalyticsData = async ({
+    period: reqPeriod = '24h',
+    severity: reqSeverity = 'ALL',
+    targetId: reqTargetId = null,
+    targetType: reqTargetType = null
+} = {}) => {
+    const periodKey = PERIODS[reqPeriod] ? reqPeriod : '24h';
+    const period = PERIODS[periodKey];
+    const rawSev = String(reqSeverity || 'ALL').toUpperCase();
+    const severityFilter = VALID_SEVERITIES.includes(rawSev) ? rawSev : 'ALL';
+
+    const winEnd = Date.now();
+    const winStart = winEnd - period.ms;
+
+    // Batas bawah = umur target (created_at tabel master), bukan insiden pertama
+    const targetId = Number(reqTargetId);
+    const targetType = String(reqTargetType || '').toUpperCase();
+    let masterCreatedMs = null;
+
+    if (Number.isInteger(targetId) && targetId > 0 && targetType) {
+        const table = targetType === 'NETWORK' ? 'monitoring_targets'
+            : (['PROXMOX', 'NODE', 'VM', 'LXC'].includes(targetType) ? 'proxmox_targets' : null);
+        if (table) {
+            const [[tRow]] = await db.query(`SELECT created_at FROM ${table} WHERE id = ?`, [targetId]);
+            if (tRow && tRow.created_at) masterCreatedMs = new Date(tRow.created_at).getTime();
+        }
+    } else {
+        // Tanpa target spesifik (agregat): gunakan target tertua dari kedua tabel master
+        const [[nRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM monitoring_targets');
+        const [[pRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM proxmox_targets');
+        const times = [nRow?.first_at, pRow?.first_at].filter(Boolean).map(t => new Date(t).getTime());
+        if (times.length) masterCreatedMs = Math.min(...times);
+    }
+
+    // Jika winStart lebih lama dari umur target, pakai created_at target
+    const effectiveStart = Math.min(winEnd, masterCreatedMs !== null ? Math.max(winStart, masterCreatedMs) : winStart);
+
+    // Severity yang diminta: ALL -> ['DOWN','CRITICAL'], selain itu sesuai filter
+    const requestedSeverities = severityFilter === 'ALL' ? ['DOWN', 'CRITICAL'] : [severityFilter];
+
+    let query = `
+        SELECT created_at, resolved_at
+        FROM active_alerts
+        WHERE IFNULL(resolved_at, CURRENT_TIMESTAMP) > ? AND created_at < ?
+          AND IFNULL(original_severity, severity) IN (${requestedSeverities.map(() => '?').join(',')})
+    `;
+    const params = [new Date(effectiveStart), new Date(winEnd), ...requestedSeverities];
+    if (Number.isInteger(targetId) && targetId > 0 && targetType) {
+        const types = targetType === 'NETWORK' ? ['NETWORK'] : ['PROXMOX', 'NODE', 'VM', 'LXC'];
+        query += ` AND target_id = ? AND target_type IN (${types.map(() => '?').join(',')})`;
+        params.push(targetId, ...types);
+    }
+    const [rows] = await db.query(query, params);
+
+    // WARNING: durasi dilaporkan sebagai degradasi, tidak memotong uptime
+    const terapkanFilter = (m) => {
+        if (severityFilter !== 'WARNING') return m;
+        const { total_downtime_sec, ...rest } = m;
+        return {
+            ...rest,
+            total_degradation_sec: total_downtime_sec,
+            total_downtime_sec: 0,
+            total_uptime_sec: m.total_period_sec,
+            availability: '100.00'
+        };
+    };
+    const incidents = rows.map(r => ({
+        start: new Date(r.created_at).getTime(),
+        end: r.resolved_at ? new Date(r.resolved_at).getTime() : winEnd
+    }));
+
+    const summary = {
+        period: periodKey,
+        severity: severityFilter,
+        ...terapkanFilter(hitungMetrikITIL(incidents, effectiveStart, winEnd))
+    };
+
+    const chartData = [];
+    const stepMs = period.bucket === 'hour' ? 3600 * 1000 : 24 * 3600 * 1000;
+    let cursorMs = Math.floor((effectiveStart + WIB_OFFSET_MS) / stepMs) * stepMs - WIB_OFFSET_MS;
+
+    while (cursorMs < winEnd) {
+        const bs = Math.max(cursorMs, effectiveStart);
+        const nextMs = cursorMs + stepMs;
+        const be = Math.min(nextMs, winEnd);
+
+        const wib = new Date(cursorMs + WIB_OFFSET_MS);
+        const label = period.bucket === 'hour'
+            ? `${String(wib.getUTCHours()).padStart(2, '0')}:00`
+            : `${wib.getUTCDate()} ${BULAN[wib.getUTCMonth()]}`;
+
+        chartData.push({
+            label,
+            ...terapkanFilter(hitungMetrikITIL(incidents, bs, be))
+        });
+        cursorMs = nextMs;
+    }
+
+    return { summary, chartData };
+};
+
 export const getAnalytics = async (req, res) => {
     try {
-        const periodKey = PERIODS[req.query.period] ? req.query.period : '24h';
-        const period = PERIODS[periodKey];
-        const rawSev = String(req.query.severity || 'ALL').toUpperCase();
-        const severityFilter = VALID_SEVERITIES.includes(rawSev) ? rawSev : 'ALL';
-
-        const winEnd = Date.now();
-        const winStart = winEnd - period.ms;
-
-        // Batas bawah = umur target (created_at tabel master), bukan insiden pertama
-        const targetId = Number(req.query.target_id);
-        const targetType = String(req.query.target_type || '').toUpperCase();
-        let masterCreatedMs = null;
-
-        if (Number.isInteger(targetId) && targetId > 0 && targetType) {
-            const table = targetType === 'NETWORK' ? 'monitoring_targets'
-                : (['PROXMOX', 'NODE', 'VM', 'LXC'].includes(targetType) ? 'proxmox_targets' : null);
-            if (table) {
-                const [[tRow]] = await db.query(`SELECT created_at FROM ${table} WHERE id = ?`, [targetId]);
-                if (tRow && tRow.created_at) masterCreatedMs = new Date(tRow.created_at).getTime();
-            }
-        } else {
-            // Tanpa target spesifik (agregat): gunakan target tertua dari kedua tabel master
-            const [[nRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM monitoring_targets');
-            const [[pRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM proxmox_targets');
-            const times = [nRow?.first_at, pRow?.first_at].filter(Boolean).map(t => new Date(t).getTime());
-            if (times.length) masterCreatedMs = Math.min(...times);
-        }
-
-        // Jika winStart lebih lama dari umur target, pakai created_at target
-        const effectiveStart = Math.min(winEnd, masterCreatedMs !== null ? Math.max(winStart, masterCreatedMs) : winStart);
-
-        // Severity yang diminta: ALL -> ['DOWN','CRITICAL'], selain itu sesuai filter
-        const requestedSeverities = severityFilter === 'ALL' ? ['DOWN', 'CRITICAL'] : [severityFilter];
-
-        let query = `
-            SELECT created_at, resolved_at
-            FROM active_alerts
-            WHERE IFNULL(resolved_at, CURRENT_TIMESTAMP) > ? AND created_at < ?
-              AND IFNULL(original_severity, severity) IN (${requestedSeverities.map(() => '?').join(',')})
-        `;
-        const params = [new Date(effectiveStart), new Date(winEnd), ...requestedSeverities];
-        if (Number.isInteger(targetId) && targetId > 0 && targetType) {
-            const types = targetType === 'NETWORK' ? ['NETWORK'] : ['PROXMOX', 'NODE', 'VM', 'LXC'];
-            query += ` AND target_id = ? AND target_type IN (${types.map(() => '?').join(',')})`;
-            params.push(targetId, ...types);
-        }
-        const [rows] = await db.query(query, params);
-
-        // WARNING: durasi dilaporkan sebagai degradasi, tidak memotong uptime
-        const terapkanFilter = (m) => {
-            if (severityFilter !== 'WARNING') return m;
-            const { total_downtime_sec, ...rest } = m;
-            return {
-                ...rest,
-                total_degradation_sec: total_downtime_sec,
-                total_downtime_sec: 0,
-                total_uptime_sec: m.total_period_sec,
-                availability: '100.00'
-            };
-        };
-        const incidents = rows.map(r => ({
-            start: new Date(r.created_at).getTime(),
-            end: r.resolved_at ? new Date(r.resolved_at).getTime() : winEnd
-        }));
-
-        const summary = {
-            period: periodKey,
-            severity: severityFilter,
-            ...terapkanFilter(hitungMetrikITIL(incidents, effectiveStart, winEnd))
-        };
-
-        const chartData = [];
-        const stepMs = period.bucket === 'hour' ? 3600 * 1000 : 24 * 3600 * 1000;
-        let cursorMs = Math.floor((effectiveStart + WIB_OFFSET_MS) / stepMs) * stepMs - WIB_OFFSET_MS;
-
-        while (cursorMs < winEnd) {
-            const bs = Math.max(cursorMs, effectiveStart);
-            const nextMs = cursorMs + stepMs;
-            const be = Math.min(nextMs, winEnd);
-
-            const wib = new Date(cursorMs + WIB_OFFSET_MS);
-            const label = period.bucket === 'hour'
-                ? `${String(wib.getUTCHours()).padStart(2, '0')}:00`
-                : `${wib.getUTCDate()} ${BULAN[wib.getUTCMonth()]}`;
-
-            chartData.push({
-                label,
-                ...terapkanFilter(hitungMetrikITIL(incidents, bs, be))
-            });
-            cursorMs = nextMs;
-        }
-
-        res.json({ success: true, summary, chartData });
+        const result = await fetchAnalyticsData({
+            period: req.query.period,
+            severity: req.query.severity,
+            targetId: req.query.target_id,
+            targetType: req.query.target_type
+        });
+        res.json({ success: true, ...result });
     } catch (error) {
         console.error("Error Analytics:", error);
         res.status(500).json({ success: false, message: 'Gagal memuat grafik analitik' });

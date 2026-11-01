@@ -36,6 +36,7 @@ import { verifyApiToken, verifyWebAuth, requireAdmin, attachWebUserIfPresent, at
 import { getIncidents, getIncidentStats, joinIncident, resolveIncident, getAnalytics } from './controllers/incidentController.js';
 import { getCleanupSettings, saveCleanupSettings, runManualCleanup } from './controllers/cleanupController.js';
 import { getDashboardSummary } from './controllers/dashboardController.js';
+import { exportIncidentsPdf, exportDashboardPdf, exportPdf } from './controllers/exportController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -141,6 +142,10 @@ app.get('/api/analytics', attachMobileUserIfPresent, getAnalytics);
 app.post('/api/incidents/join', attachMobileUserIfPresent, joinIncident);
 app.post('/api/incidents/resolve', attachMobileUserIfPresent, resolveIncident);
 
+// Route Export PDF Laporan (Mendukung Web Cookie & Bearer Token)
+app.get('/api/export/pdf/incidents', attachMobileUserIfPresent, exportIncidentsPdf);
+app.get('/api/export/pdf/dashboard', attachMobileUserIfPresent, exportDashboardPdf);
+
 // ==========================================
 // ROUTE API MOBILE V1 (Wajib Bearer Token)
 // ==========================================
@@ -168,6 +173,9 @@ app.get('/api/mobile/v1/proxmox/logs/tasks', verifyApiToken, getTasksLog);
 app.get('/api/mobile/v1/proxmox/logs/cluster', verifyApiToken, getClusterLog);
 app.get('/api/mobile/v1/proxmox/logs/task-detail', verifyApiToken, getTaskDetailLog);
 app.get('/api/mobile/v1/logs/system', verifyApiToken, getSystemLogs);
+app.get('/api/mobile/v1/export/pdf', verifyApiToken, exportPdf);
+app.get('/api/mobile/v1/export/pdf/incidents', verifyApiToken, exportIncidentsPdf);
+app.get('/api/mobile/v1/export/pdf/dashboard', verifyApiToken, exportDashboardPdf);
 
 // Sisipkan di antara endpoint yang sudah ada
 app.post('/api/auth/simulate-fcm', simulateFCM);

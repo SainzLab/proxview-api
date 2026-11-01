@@ -209,123 +209,126 @@ const fetchProxmoxClusterData = async (timeframeKey = '1h') => {
     };
 };
 
+// Helper ambil data ringkasan dashboard (digunakan oleh API & Export PDF)
+export const fetchDashboardSummaryData = async (timeframeKey = '1h') => {
+    // 1. Data Pengguna
+    const [[userStats]] = await db.query(`
+        SELECT 
+            COUNT(*) AS total_users,
+            SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_users,
+            COUNT(DISTINCT CASE WHEN is_active = 1 THEN role END) AS active_roles
+        FROM users
+    `);
+
+    // 2. Data Target Network (ICMP & TCP)
+    const [targets] = await db.query('SELECT id, name, protocol, status, last_latency, is_active FROM monitoring_targets');
+
+    const parseLatencyNumber = (val) => {
+        if (!val) return null;
+        const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+        return Number.isNaN(num) ? null : num;
+    };
+
+    const icmpTargets = targets.filter(t => t.protocol === 'ICMP PING');
+    const activeIcmp = icmpTargets.filter(t => t.is_active === 1);
+    const upIcmp = activeIcmp.filter(t => t.status === 'UP');
+    const downIcmp = activeIcmp.filter(t => t.status === 'DOWN');
+    const icmpLatencies = upIcmp.map(t => parseLatencyNumber(t.last_latency)).filter(v => v !== null);
+    const avgIcmpLatency = icmpLatencies.length > 0
+        ? Number((icmpLatencies.reduce((a, b) => a + b, 0) / icmpLatencies.length).toFixed(1))
+        : 0;
+
+    const tcpTargets = targets.filter(t => t.protocol === 'TCP SOCKET');
+    const activeTcp = tcpTargets.filter(t => t.is_active === 1);
+    const upTcp = activeTcp.filter(t => t.status === 'UP');
+    const downTcp = activeTcp.filter(t => t.status === 'DOWN');
+    const tcpLatencies = upTcp.map(t => parseLatencyNumber(t.last_latency)).filter(v => v !== null);
+    const avgTcpLatency = tcpLatencies.length > 0
+        ? Number((tcpLatencies.reduce((a, b) => a + b, 0) / tcpLatencies.length).toFixed(1))
+        : 0;
+
+    // 3. Data Riwayat Alert & Incident Terbaru (10 terbaru)
+    const [alertRows] = await db.query(`
+        SELECT 
+            a.id, a.target_type, a.target_name, a.severity, a.original_severity,
+            a.message, a.created_at, a.resolved_at, a.is_resolved,
+            COUNT(h.id) AS handler_count,
+            GROUP_CONCAT(h.user_name SEPARATOR ', ') AS technicians
+        FROM active_alerts a
+        LEFT JOIN alert_handlers h ON a.id = h.alert_id
+        GROUP BY a.id
+        ORDER BY a.is_resolved ASC, a.created_at DESC
+        LIMIT 10
+    `);
+
+    const recentIncidents = alertRows.map(row => {
+        const year = getWibYear(row.created_at);
+        const ticketId = `#INC-${year}-${String(row.id).padStart(4, '0')}`;
+
+        let statusLabel = 'TRIGGERED';
+        if (row.is_resolved === 1) {
+            statusLabel = 'NORMAL';
+        } else if (row.handler_count > 0) {
+            statusLabel = 'INVESTIGASI';
+        }
+
+        const effectiveSeverity = row.is_resolved === 1
+            ? 'RESOLVED'
+            : (row.severity || row.original_severity || 'WARNING');
+
+        return {
+            id: row.id,
+            ticket_id: ticketId,
+            time: row.created_at,
+            resolved_at: row.resolved_at,
+            target_type: row.target_type,
+            target_name: row.target_name,
+            component: `${row.target_type} - ${row.target_name}`,
+            severity: effectiveSeverity,
+            original_severity: row.original_severity || row.severity,
+            message: row.message,
+            is_resolved: row.is_resolved === 1,
+            status_label: statusLabel,
+            technicians: row.technicians || null
+        };
+    });
+
+    // 4. Data Proxmox Cluster & RRD Chart
+    const proxmoxData = await fetchProxmoxClusterData(timeframeKey);
+
+    return {
+        users: {
+            total: Number(userStats?.total_users) || 0,
+            active: Number(userStats?.active_users) || 0,
+            active_roles: Number(userStats?.active_roles) || 0
+        },
+        proxmox: proxmoxData,
+        icmp: {
+            total: icmpTargets.length,
+            active: activeIcmp.length,
+            up: upIcmp.length,
+            down: downIcmp.length,
+            avg_latency_ms: avgIcmpLatency
+        },
+        tcp: {
+            total: tcpTargets.length,
+            active: activeTcp.length,
+            up: upTcp.length,
+            down: downTcp.length,
+            avg_latency_ms: avgTcpLatency
+        },
+        recent_incidents: recentIncidents
+    };
+};
+
 // GET /api/dashboard/summary
 export const getDashboardSummary = async (req, res) => {
     try {
         const rawTf = String(req.query.timeframe || '1h').toLowerCase();
         const timeframeKey = ['1h', '24h', '7d'].includes(rawTf) ? rawTf : '1h';
 
-        // 1. Data Pengguna
-        const [[userStats]] = await db.query(`
-            SELECT 
-                COUNT(*) AS total_users,
-                SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_users,
-                COUNT(DISTINCT CASE WHEN is_active = 1 THEN role END) AS active_roles
-            FROM users
-        `);
-
-        // 2. Data Target Network (ICMP & TCP)
-        const [targets] = await db.query('SELECT id, name, protocol, status, last_latency, is_active FROM monitoring_targets');
-
-        const parseLatencyNumber = (val) => {
-            if (!val) return null;
-            const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-            return Number.isNaN(num) ? null : num;
-        };
-
-        const icmpTargets = targets.filter(t => t.protocol === 'ICMP PING');
-        const activeIcmp = icmpTargets.filter(t => t.is_active === 1);
-        const upIcmp = activeIcmp.filter(t => t.status === 'UP');
-        const downIcmp = activeIcmp.filter(t => t.status === 'DOWN');
-        const icmpLatencies = upIcmp.map(t => parseLatencyNumber(t.last_latency)).filter(v => v !== null);
-        const avgIcmpLatency = icmpLatencies.length > 0
-            ? Number((icmpLatencies.reduce((a, b) => a + b, 0) / icmpLatencies.length).toFixed(1))
-            : 0;
-
-        const tcpTargets = targets.filter(t => t.protocol === 'TCP SOCKET');
-        const activeTcp = tcpTargets.filter(t => t.is_active === 1);
-        const upTcp = activeTcp.filter(t => t.status === 'UP');
-        const downTcp = activeTcp.filter(t => t.status === 'DOWN');
-        const tcpLatencies = upTcp.map(t => parseLatencyNumber(t.last_latency)).filter(v => v !== null);
-        const avgTcpLatency = tcpLatencies.length > 0
-            ? Number((tcpLatencies.reduce((a, b) => a + b, 0) / tcpLatencies.length).toFixed(1))
-            : 0;
-
-        // 3. Data Riwayat Alert & Incident Terbaru (10 terbaru)
-        const [alertRows] = await db.query(`
-            SELECT 
-                a.id, a.target_type, a.target_name, a.severity, a.original_severity,
-                a.message, a.created_at, a.resolved_at, a.is_resolved,
-                COUNT(h.id) AS handler_count,
-                GROUP_CONCAT(h.user_name SEPARATOR ', ') AS technicians
-            FROM active_alerts a
-            LEFT JOIN alert_handlers h ON a.id = h.alert_id
-            GROUP BY a.id
-            ORDER BY a.is_resolved ASC, a.created_at DESC
-            LIMIT 10
-        `);
-
-        const recentIncidents = alertRows.map(row => {
-            const year = getWibYear(row.created_at);
-            const ticketId = `#INC-${year}-${String(row.id).padStart(4, '0')}`;
-
-            let statusLabel = 'TRIGGERED';
-            if (row.is_resolved === 1) {
-                statusLabel = 'NORMAL';
-            } else if (row.handler_count > 0) {
-                statusLabel = 'INVESTIGASI';
-            }
-
-            const effectiveSeverity = row.is_resolved === 1
-                ? 'RESOLVED'
-                : (row.severity || row.original_severity || 'WARNING');
-
-            return {
-                id: row.id,
-                ticket_id: ticketId,
-                time: row.created_at,
-                resolved_at: row.resolved_at,
-                target_type: row.target_type,
-                target_name: row.target_name,
-                component: `${row.target_type} - ${row.target_name}`,
-                severity: effectiveSeverity,
-                original_severity: row.original_severity || row.severity,
-                message: row.message,
-                is_resolved: row.is_resolved === 1,
-                status_label: statusLabel,
-                technicians: row.technicians || null
-            };
-        });
-
-        // 4. Data Proxmox Cluster & RRD Chart
-        const proxmoxData = await fetchProxmoxClusterData(timeframeKey);
-
-        res.json({
-            success: true,
-            data: {
-                users: {
-                    total: Number(userStats?.total_users) || 0,
-                    active: Number(userStats?.active_users) || 0,
-                    active_roles: Number(userStats?.active_roles) || 0
-                },
-                proxmox: proxmoxData,
-                icmp: {
-                    total: icmpTargets.length,
-                    active: activeIcmp.length,
-                    up: upIcmp.length,
-                    down: downIcmp.length,
-                    avg_latency_ms: avgIcmpLatency
-                },
-                tcp: {
-                    total: tcpTargets.length,
-                    active: activeTcp.length,
-                    up: upTcp.length,
-                    down: downTcp.length,
-                    avg_latency_ms: avgTcpLatency
-                },
-                recent_incidents: recentIncidents
-            }
-        });
+        const data = await fetchDashboardSummaryData(timeframeKey);
+        res.json({ success: true, data });
     } catch (error) {
         console.error('Error getDashboardSummary:', error);
         res.status(500).json({ success: false, message: 'Gagal memuat ringkasan dashboard.' });

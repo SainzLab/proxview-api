@@ -375,9 +375,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import VueApexCharts from 'vue3-apexcharts';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { formatWibShort, formatWibDateTime, parseUtcDate } from '../../utils/datetime.js';
+import { downloadFileFromApi } from '@/utils/downloadHelper.js';
+
+import { formatWibShort } from '../../utils/datetime.js';
 import { isDark } from '../../utils/theme.js';
 import ToastNotification from '@/components/common/ToastNotification.vue';
 
@@ -569,164 +569,23 @@ const fetchAnalytics = async () => {
 };
 
 // FUNGSI EXPORT PDF
-const PERIOD_CONFIG = {
-  '24h': { label: '24 Jam Terakhir', ms: 24 * 3600 * 1000 },
-  '7d':  { label: '7 Hari Terakhir', ms: 7 * 24 * 3600 * 1000 },
-  '30d': { label: '30 Hari Terakhir', ms: 30 * 24 * 3600 * 1000 }
-};
-
 const exportToPdf = async (periodKey) => {
   showExportMenu.value = false;
   if (isExporting.value) return;
   isExporting.value = true;
   
   try {
-    const periodCfg = PERIOD_CONFIG[periodKey] || PERIOD_CONFIG['24h'];
-    const sevFilter = analyticsSeverity.value;
-    const sevLabel = sevFilter === 'ALL' ? 'Semua Level (Warning, Critical, Down)' : `Level ${sevFilter}`;
-
-    const [analyticsRes, incidentsRes] = await Promise.all([
-      fetch(`/api/analytics?period=${periodKey}&severity=${sevFilter}`),
-      fetch('/api/incidents')
-    ]);
-
-    const analyticsJson = await analyticsRes.json();
-    const incidentsJson = await incidentsRes.json();
-
-    if (!analyticsJson.success || !incidentsJson.success) {
-      throw new Error('Gagal mengambil data laporan dari server.');
-    }
-
-    const sum = analyticsJson.summary;
-    const chartRows = analyticsJson.chartData || [];
-    const nowMs = Date.now();
-    const winStartMs = nowMs - periodCfg.ms;
-
-    const periodTickets = (incidentsJson.data || []).filter(t => {
-      const startDate = parseUtcDate(t.time);
-      const endDate = t.resolved_at ? parseUtcDate(t.resolved_at) : new Date(nowMs);
-      const startMs = startDate ? startDate.getTime() : 0;
-      const endMs = endDate ? endDate.getTime() : nowMs;
-      
-      const inWindow = endMs > winStartMs && startMs < nowMs;
-      if (!inWindow) return false;
-      
-      if (sevFilter !== 'ALL') {
-        const origSev = String(t.original_severity || t.severity || '').toUpperCase();
-        return origSev === sevFilter;
-      }
-      return true;
+    const params = new URLSearchParams({
+      period: periodKey,
+      severity: analyticsSeverity.value
     });
-
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 297, 32, 'F');
-    doc.setTextColor(16, 185, 129);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.text('VIEWMOX - LAPORAN REKAPITULASI GANGGUAN & ANALITIK SLA', 14, 13);
-    
-    doc.setTextColor(226, 232, 240);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5);
-    doc.text(`Periode Laporan: ${periodCfg.label}   |   Filter Level: ${sevLabel}`, 14, 20);
-    doc.text(`Waktu Cetak: ${formatWibDateTime(new Date())} WIB`, 14, 26);
-
-    doc.setTextColor(15, 23, 42);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('1. Ringkasan Metrik Kinerja Sistem (SLA)', 14, 40);
-
-    autoTable(doc, {
-      startY: 43,
-      head: [['Total Uptime', 'Total Downtime', 'MTTR (Rata-rata Pemulihan)', 'Availability (%)', 'Total Insiden']],
-      body: [[
-        formatPreciseDuration(sum.total_uptime_sec),
-        formatPreciseDuration(sum.total_downtime_sec),
-        formatPreciseDuration(sum.mttr_sec),
-        `${sum.availability}%`,
-        `${sum.incident_count || 0} Tiket`
-      ]],
-      theme: 'grid',
-      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', fontSize: 9 },
-      bodyStyles: { halign: 'center', fontSize: 9.5, fontStyle: 'bold', textColor: [30, 41, 59] },
-      margin: { left: 14, right: 14 }
-    });
-
-    let nextY = doc.lastAutoTable.finalY + 8;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(`2. Rincian Analitik per ${periodKey === '24h' ? 'Jam' : 'Hari'}`, 14, nextY);
-
-    autoTable(doc, {
-      startY: nextY + 3,
-      head: [['Periode Waktu (WIB)', 'Total Uptime', 'Total Downtime', 'Jumlah Insiden', 'MTTR', 'Availability']],
-      body: chartRows.map(r => [
-        r.label,
-        formatPreciseDuration(r.total_uptime_sec),
-        formatPreciseDuration(r.total_downtime_sec),
-        `${r.incident_count || 0}`,
-        formatPreciseDuration(r.mttr_sec),
-        `${r.availability}%`
-      ]),
-      theme: 'striped',
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
-      bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
-      columnStyles: { 0: { fontStyle: 'bold' }, 3: { halign: 'center' }, 5: { halign: 'right', fontStyle: 'bold' } },
-      margin: { left: 14, right: 14 }
-    });
-
-    nextY = doc.lastAutoTable.finalY + 8;
-    if (nextY > 175) { doc.addPage(); nextY = 16; }
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(`3. Daftar Riwayat Tiket Gangguan (${periodTickets.length} Tiket)`, 14, nextY);
-
-    const ticketBody = periodTickets.length > 0 
-      ? periodTickets.map((t, idx) => [
-          idx + 1,
-          t.id,
-          formatWibDateTime(t.time),
-          t.target,
-          t.original_severity || t.severity,
-          t.title,
-          t.status,
-          t.technicians || 'Auto-Recover / Belum Ada',
-          t.downtime_duration || '-',
-          t.handling_duration || '-'
-        ])
-      : [['-', '-', '-', '-', '-', 'Tidak ada riwayat tiket gangguan pada rentang periode dan level ini.', '-', '-', '-', '-']];
-
-    autoTable(doc, {
-      startY: nextY + 3,
-      head: [['No', 'ID Tiket', 'Waktu Kejadian (WIB)', 'Target', 'Level', 'Deskripsi Gangguan', 'Status', 'Teknisi', 'Downtime', 'Penanganan']],
-      body: ticketBody,
-      theme: 'grid',
-      headStyles: { fillColor: [16, 185, 129], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59], valign: 'middle' },
-      columnStyles: {
-        0: { halign: 'center', cellWidth: 9 },
-        1: { fontStyle: 'bold', cellWidth: 25 },
-        2: { cellWidth: 32 },
-        3: { cellWidth: 34 },
-        4: { halign: 'center', fontStyle: 'bold', cellWidth: 18 },
-        5: { cellWidth: 68 },
-        6: { halign: 'center', cellWidth: 24 },
-        7: { cellWidth: 27 },
-        8: { halign: 'center', cellWidth: 16 },
-        9: { halign: 'center', cellWidth: 16 }
-      },
-      margin: { left: 14, right: 14 }
-    });
-
-    const stamp = new Date().toISOString().slice(0, 10);
-    doc.save(`Laporan_Rekap_Gangguan_${periodKey}_${sevFilter}_${stamp}.pdf`);
-    
+    await downloadFileFromApi(
+      `/api/export/pdf/incidents?${params.toString()}`,
+      `Laporan_Rekap_Gangguan_${periodKey}_${analyticsSeverity.value}.pdf`
+    );
   } catch (err) {
     console.error('Error exportToPdf:', err);
-    showToast('error', 'Gagal Mengekspor', 'Gagal mengekspor laporan PDF.');
+    showToast('error', 'Gagal Mengekspor', err.message || 'Gagal mengekspor laporan PDF.');
   } finally {
     isExporting.value = false;
   }

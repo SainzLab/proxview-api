@@ -338,10 +338,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import VueApexCharts from 'vue3-apexcharts';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { formatWibDateTime } from '../../utils/datetime.js';
 import { isDark } from '../../utils/theme.js';
+import { downloadFileFromApi } from '@/utils/downloadHelper.js';
 import ToastNotification from '@/components/common/ToastNotification.vue';
 
 const apexchart = VueApexCharts;
@@ -803,102 +802,22 @@ const fetchDashboardData = async (isBackground = false) => {
   }
 };
 
-const exportDashboardPdf = () => {
+const exportDashboardPdf = async () => {
   if (isExporting.value) return;
   isExporting.value = true;
   try {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 297, 30, 'F');
-    doc.setTextColor(16, 185, 129);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.text('VIEWMOX - LAPORAN RINGKASAN INFRASTRUKTUR & SLA', 14, 13);
-
-    doc.setTextColor(226, 232, 240);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5);
-    doc.text(`Waktu Cetak: ${formatWibDateTime(new Date())} WIB   |   Resource: ${timeframeLabel.value}   |   SLA: ${slaFilterLabel.value}`, 14, 22);
-
-    // 1. Ringkasan KPI Infrastruktur
-    doc.setTextColor(15, 23, 42);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('1. Ringkasan Status Infrastruktur', 14, 38);
-
-    autoTable(doc, {
-      startY: 41,
-      head: [['Total Pengguna', 'Node Proxmox VE', 'VM / LXC Aktif', 'Rata-rata CPU / RAM / IO', 'Target Ping (ICMP)', 'Target TCP Port']],
-      body: [[
-        `${summary.value.users.total} Akun (${summary.value.users.active} Aktif)`,
-        `${summary.value.proxmox.online_nodes} / ${summary.value.proxmox.total_nodes} Online (${summary.value.proxmox.health_percent}%)`,
-        `${summary.value.proxmox.running_vms} / ${summary.value.proxmox.total_vms} Running`,
-        `CPU: ${summary.value.proxmox.avg_cpu}% | RAM: ${summary.value.proxmox.avg_ram}% | IO: ${summary.value.proxmox.avg_io}%`,
-        `${summary.value.icmp.total} Target (${summary.value.icmp.down} RTO, Avg ${summary.value.icmp.avg_latency_ms} ms)`,
-        `${summary.value.tcp.total} Port (${summary.value.tcp.down} Down, Avg ${summary.value.tcp.avg_latency_ms} ms)`
-      ]],
-      theme: 'grid',
-      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', fontSize: 8.5 },
-      bodyStyles: { halign: 'center', fontSize: 8.5, fontStyle: 'bold', textColor: [30, 41, 59] },
-      margin: { left: 14, right: 14 }
+    const params = new URLSearchParams({
+      timeframe: selectedTimeframe.value,
+      period: slaPeriod.value,
+      severity: slaSeverity.value
     });
-
-    // 2. Ringkasan SLA (Total Uptime, Downtime, MTTR, Availability)
-    let nextY = doc.lastAutoTable.finalY + 8;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(`2. Ringkasan Metrik SLA (${slaFilterLabel.value})`, 14, nextY);
-
-    autoTable(doc, {
-      startY: nextY + 3,
-      head: [['Total Uptime', 'Total Downtime', 'MTTR (Rata-rata Pemulihan)', 'Availability (%)', 'Total Insiden']],
-      body: [[
-        formatPreciseDuration(slaAnalytics.value.summary.total_uptime_sec),
-        formatPreciseDuration(slaAnalytics.value.summary.total_downtime_sec),
-        formatPreciseDuration(slaAnalytics.value.summary.mttr_sec),
-        `${slaAnalytics.value.summary.availability}%`,
-        `${slaAnalytics.value.summary.incident_count} Insiden`
-      ]],
-      theme: 'grid',
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', fontSize: 8.5 },
-      bodyStyles: { halign: 'center', fontSize: 8.5, fontStyle: 'bold', textColor: [30, 41, 59] },
-      margin: { left: 14, right: 14 }
-    });
-
-    // 3. Tabel Log Alert & Incident Terbaru
-    nextY = doc.lastAutoTable.finalY + 8;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('3. Log Alert & Incident Terbaru', 14, nextY);
-
-    const incRows = summary.value.recent_incidents.length > 0
-      ? summary.value.recent_incidents.map((inc, i) => [
-          i + 1,
-          inc.ticket_id,
-          formatWibDateTime(inc.time),
-          inc.severity,
-          `[${inc.target_type}] ${inc.target_name}`,
-          inc.message,
-          inc.status_label
-        ])
-      : [['-', '-', '-', '-', '-', 'Belum ada riwayat alert atau insiden.', '-']];
-
-    autoTable(doc, {
-      startY: nextY + 3,
-      head: [['No', 'ID Tiket', 'Waktu (WIB)', 'Severity', 'Komponen Target', 'Deskripsi Peristiwa', 'Status']],
-      body: incRows,
-      theme: 'grid',
-      headStyles: { fillColor: [16, 185, 129], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8.5 },
-      bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
-      margin: { left: 14, right: 14 }
-    });
-
-    const stamp = new Date().toISOString().slice(0, 10);
-    doc.save(`Ringkasan_Infrastruktur_Viewmox_${stamp}.pdf`);
+    await downloadFileFromApi(
+      `/api/export/pdf/dashboard?${params.toString()}`,
+      'Ringkasan_Infrastruktur_Proxview.pdf'
+    );
   } catch (err) {
     console.error('Error exportDashboardPdf:', err);
-    showToast('error', 'Gagal Mengekspor', 'Gagal membuat laporan PDF.');
+    showToast('error', 'Gagal Mengekspor', err.message || 'Gagal membuat laporan PDF.');
   } finally {
     isExporting.value = false;
   }
