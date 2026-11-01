@@ -253,24 +253,58 @@ export const getAnalytics = async (req, res) => {
         const winEnd = Date.now();
         const winStart = winEnd - period.ms;
 
-        const [[firstRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM active_alerts');
-        const firstDataMs = firstRow && firstRow.first_at ? new Date(firstRow.first_at).getTime() : winEnd;
-        const effectiveStart = Math.min(winEnd, Math.max(winStart, firstDataMs));
+        // Batas bawah = umur target (created_at tabel master), bukan insiden pertama
+        const targetId = Number(req.query.target_id);
+        const targetType = String(req.query.target_type || '').toUpperCase();
+        let masterCreatedMs = null;
 
-        let query = `
-            SELECT created_at, resolved_at 
-            FROM active_alerts 
-            WHERE IFNULL(resolved_at, CURRENT_TIMESTAMP) > ? AND created_at < ?
-        `;
-        const params = [new Date(effectiveStart), new Date(winEnd)];
-
-        if (severityFilter !== 'ALL') {
-            query += ` AND IFNULL(original_severity, severity) = ?`;
-            params.push(severityFilter);
+        if (Number.isInteger(targetId) && targetId > 0 && targetType) {
+            const table = targetType === 'NETWORK' ? 'monitoring_targets'
+                : (['PROXMOX', 'NODE', 'VM', 'LXC'].includes(targetType) ? 'proxmox_targets' : null);
+            if (table) {
+                const [[tRow]] = await db.query(`SELECT created_at FROM ${table} WHERE id = ?`, [targetId]);
+                if (tRow && tRow.created_at) masterCreatedMs = new Date(tRow.created_at).getTime();
+            }
+        } else {
+            // Tanpa target spesifik (agregat): gunakan target tertua dari kedua tabel master
+            const [[nRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM monitoring_targets');
+            const [[pRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM proxmox_targets');
+            const times = [nRow?.first_at, pRow?.first_at].filter(Boolean).map(t => new Date(t).getTime());
+            if (times.length) masterCreatedMs = Math.min(...times);
         }
 
+        // Jika winStart lebih lama dari umur target, pakai created_at target
+        const effectiveStart = Math.min(winEnd, masterCreatedMs !== null ? Math.max(winStart, masterCreatedMs) : winStart);
+
+        // Severity yang diminta: ALL -> ['DOWN','CRITICAL'], selain itu sesuai filter
+        const requestedSeverities = severityFilter === 'ALL' ? ['DOWN', 'CRITICAL'] : [severityFilter];
+
+        let query = `
+            SELECT created_at, resolved_at
+            FROM active_alerts
+            WHERE IFNULL(resolved_at, CURRENT_TIMESTAMP) > ? AND created_at < ?
+              AND IFNULL(original_severity, severity) IN (${requestedSeverities.map(() => '?').join(',')})
+        `;
+        const params = [new Date(effectiveStart), new Date(winEnd), ...requestedSeverities];
+        if (Number.isInteger(targetId) && targetId > 0 && targetType) {
+            const types = targetType === 'NETWORK' ? ['NETWORK'] : ['PROXMOX', 'NODE', 'VM', 'LXC'];
+            query += ` AND target_id = ? AND target_type IN (${types.map(() => '?').join(',')})`;
+            params.push(targetId, ...types);
+        }
         const [rows] = await db.query(query, params);
 
+        // WARNING: durasi dilaporkan sebagai degradasi, tidak memotong uptime
+        const terapkanFilter = (m) => {
+            if (severityFilter !== 'WARNING') return m;
+            const { total_downtime_sec, ...rest } = m;
+            return {
+                ...rest,
+                total_degradation_sec: total_downtime_sec,
+                total_downtime_sec: 0,
+                total_uptime_sec: m.total_period_sec,
+                availability: '100.00'
+            };
+        };
         const incidents = rows.map(r => ({
             start: new Date(r.created_at).getTime(),
             end: r.resolved_at ? new Date(r.resolved_at).getTime() : winEnd
@@ -279,7 +313,7 @@ export const getAnalytics = async (req, res) => {
         const summary = {
             period: periodKey,
             severity: severityFilter,
-            ...hitungMetrikITIL(incidents, effectiveStart, winEnd)
+            ...terapkanFilter(hitungMetrikITIL(incidents, effectiveStart, winEnd))
         };
 
         const chartData = [];
@@ -298,7 +332,7 @@ export const getAnalytics = async (req, res) => {
 
             chartData.push({
                 label,
-                ...hitungMetrikITIL(incidents, bs, be)
+                ...terapkanFilter(hitungMetrikITIL(incidents, bs, be))
             });
             cursorMs = nextMs;
         }
