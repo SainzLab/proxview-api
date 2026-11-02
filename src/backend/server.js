@@ -33,7 +33,7 @@ import { getNetworkThresholds, saveNetworkThresholds, getProxmoxThresholds, save
 import { getActiveAlerts, getAlertHistory } from './controllers/mobileAlertController.js';
 import { getTasksLog, getClusterLog, getTaskDetailLog } from './controllers/proxmoxLogController.js';
 import { verifyApiToken, verifyWebAuth, requireAdmin, attachWebUserIfPresent, attachMobileUserIfPresent } from './middlewares/authMiddleware.js';
-import { getIncidents, getIncidentStats, joinIncident, resolveIncident, getAnalytics } from './controllers/incidentController.js';
+import { getIncidents, getIncidentStats, joinIncident, resolveIncident, getAnalytics, getMobileAnalyticsSummary } from './controllers/incidentController.js';
 import { getCleanupSettings, saveCleanupSettings, runManualCleanup } from './controllers/cleanupController.js';
 import { getDashboardSummary } from './controllers/dashboardController.js';
 import { exportIncidentsPdf, exportDashboardPdf, exportPdf } from './controllers/exportController.js';
@@ -171,6 +171,8 @@ app.get('/api/mobile/v1/incidents/stats', verifyApiToken, getIncidentStats);
 app.post('/api/mobile/v1/incidents/join', verifyApiToken, joinIncident);
 app.post('/api/mobile/v1/incidents/resolve', verifyApiToken, resolveIncident);
 app.get('/api/mobile/v1/analytics', verifyApiToken, getAnalytics);
+app.get('/api/mobile/v1/analytics/summary', verifyApiToken, getMobileAnalyticsSummary);
+app.get('/api/mobile/v1/analytics/mtbf', verifyApiToken, getMobileAnalyticsSummary);
 app.get('/api/mobile/v1/targets', verifyApiToken, getTargets);
 app.get('/api/mobile/v1/targets/:id/history', verifyApiToken, getTargetHistory);
 app.get('/api/mobile/v1/proxmox', verifyApiToken, getProxmoxNodes);

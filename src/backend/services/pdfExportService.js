@@ -188,11 +188,12 @@ export const generateRekapGangguanPdf = ({
 
   autoTable(doc, {
     startY: 43,
-    head: [['Total Uptime', 'Total Downtime', 'MTTR (Rata-rata Pemulihan)', 'Availability (%)', 'Total Insiden']],
+    head: [['Total Uptime', 'Total Downtime', 'MTTR (Rata-rata Pemulihan)', 'MTBF (Antar Kegagalan)', 'Availability (%)', 'Total Insiden']],
     body: [[
       formatPreciseDuration(sum.total_uptime_sec),
       formatPreciseDuration(sum.total_downtime_sec),
       formatPreciseDuration(sum.mttr_sec),
+      formatPreciseDuration(sum.mtbf_sec),
       `${sum.availability ?? '100.00'}%`,
       `${sum.incident_count || 0} Tiket`
     ]],
@@ -219,13 +220,14 @@ export const generateRekapGangguanPdf = ({
 
   autoTable(doc, {
     startY: nextY + 3,
-    head: [['Periode Waktu (WIB)', 'Total Uptime', 'Total Downtime', 'Jumlah Insiden', 'MTTR', 'Availability']],
+    head: [['Periode Waktu (WIB)', 'Total Uptime', 'Total Downtime', 'Jumlah Insiden', 'MTTR', 'MTBF', 'Availability']],
     body: chartRows.map(r => [
       r.label,
       formatPreciseDuration(r.total_uptime_sec),
       formatPreciseDuration(r.total_downtime_sec),
       `${r.incident_count || 0}`,
       formatPreciseDuration(r.mttr_sec),
+      formatPreciseDuration(r.mtbf_sec),
       `${r.availability ?? '100.00'}%`
     ]),
     theme: 'striped',
@@ -242,7 +244,7 @@ export const generateRekapGangguanPdf = ({
     columnStyles: {
       0: { fontStyle: 'bold' },
       3: { halign: 'center' },
-      5: { halign: 'right', fontStyle: 'bold' }
+      6: { halign: 'right', fontStyle: 'bold' }
     },
     margin
   });
@@ -371,17 +373,19 @@ export const generateDashboardSummaryPdf = ({
     total_uptime_sec: 0,
     total_downtime_sec: 0,
     mttr_sec: 0,
+    mtbf_sec: 0,
     availability: 100,
     incident_count: 0
   };
 
   autoTable(doc, {
     startY: nextY + 3,
-    head: [['Total Uptime', 'Total Downtime', 'MTTR (Rata-rata Pemulihan)', 'Availability (%)', 'Total Insiden']],
+    head: [['Total Uptime', 'Total Downtime', 'MTTR (Rata-rata Pemulihan)', 'MTBF (Antar Kegagalan)', 'Availability (%)', 'Total Insiden']],
     body: [[
       formatPreciseDuration(slaSummary.total_uptime_sec),
       formatPreciseDuration(slaSummary.total_downtime_sec),
       formatPreciseDuration(slaSummary.mttr_sec),
+      formatPreciseDuration(slaSummary.mtbf_sec),
       `${slaSummary.availability ?? '100.00'}%`,
       `${slaSummary.incident_count || 0} Insiden`
     ]],

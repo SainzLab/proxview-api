@@ -163,12 +163,12 @@
       </div>
     </div>
 
-    <!-- Chart Area 2: Grafik & Ringkasan Total Uptime, Downtime, MTTR & Availability -->
+    <!-- Chart Area 2: Grafik & Ringkasan Total Uptime, Downtime, MTTR, MTBF & Availability -->
     <div class="bg-white border border-slate-200/80 p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] mb-6">
       <div class="flex flex-wrap justify-between items-center gap-4 mb-5">
         <div>
           <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <i class="ph-bold ph-chart-bar text-slate-500"></i> Analitik Kinerja (Uptime, Downtime, MTTR &amp; Availability)
+            <i class="ph-bold ph-chart-bar text-slate-500"></i> Analitik Kinerja (Uptime, Downtime, MTTR, MTBF &amp; Availability)
           </h3>
           <p class="text-xs text-slate-500 mt-1">
             Rekap keandalan sistem &bull; {{ slaFilterLabel }}
@@ -191,8 +191,8 @@
         </div>
       </div>
 
-      <!-- 4 Mini KPI Cards -->
-      <div class="grid grid-cols-4 gap-4 mb-5">
+      <!-- 5 Mini KPI Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
         <div class="bg-slate-50 border border-slate-100 rounded-xl p-4">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
             <i class="ph-bold ph-arrow-circle-up text-emerald-500"></i> Total Uptime
@@ -220,6 +220,13 @@
           </p>
           <h4 class="text-2xl font-black text-slate-900 font-mono tracking-tight leading-none">{{ formatPreciseDuration(slaAnalytics.summary.mttr_sec) }}</h4>
           <p class="text-[11px] text-slate-500 mt-2">Rata-rata waktu pemulihan</p>
+        </div>
+        <div class="bg-slate-50 border border-slate-100 rounded-xl p-4">
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <i class="ph-bold ph-pulse text-indigo-500"></i> MTBF
+          </p>
+          <h4 class="text-2xl font-black text-slate-900 font-mono tracking-tight leading-none">{{ formatPreciseDuration(slaAnalytics.summary.mtbf_sec) }}</h4>
+          <p class="text-[11px] text-slate-500 mt-2">Rata-rata waktu beroperasi antar kegagalan</p>
         </div>
         <div class="bg-slate-50 border border-slate-100 rounded-xl p-4">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -362,7 +369,7 @@ const showToast = (type, title, message) => {
   toastTimer = setTimeout(() => { toast.value.show = false; }, 5000);
 };
 
-// STATE ANALITIK SLA (UPTIME, DOWNTIME, MTTR, AVAILABILITY)
+// STATE ANALITIK SLA (UPTIME, DOWNTIME, MTTR, MTBF, AVAILABILITY)
 const slaPeriod = ref('24h');
 const slaSeverity = ref('ALL');
 const slaAnalytics = ref({
@@ -370,6 +377,7 @@ const slaAnalytics = ref({
     total_uptime_sec: 0,
     total_downtime_sec: 0,
     mttr_sec: 0,
+    mtbf_sec: 0,
     availability: 100,
     incident_count: 0
   },
@@ -737,6 +745,7 @@ const fetchSlaAnalytics = async () => {
           total_uptime_sec: sum.total_uptime_sec || 0,
           total_downtime_sec: sum.total_downtime_sec || 0,
           mttr_sec: sum.mttr_sec || 0,
+          mtbf_sec: sum.mtbf_sec ?? (sum.total_uptime_sec || 0),
           availability: parseFloat(sum.availability || 100),
           incident_count: sum.incident_count || 0
         },
@@ -745,6 +754,7 @@ const fetchSlaAnalytics = async () => {
           total_uptime_sec: d.total_uptime_sec || 0,
           total_downtime_sec: d.total_downtime_sec || 0,
           mttr_sec: d.mttr_sec || 0,
+          mtbf_sec: d.mtbf_sec ?? (d.total_uptime_sec || 0),
           availability: parseFloat(d.availability || 100),
           incident_count: d.incident_count || 0
         }))

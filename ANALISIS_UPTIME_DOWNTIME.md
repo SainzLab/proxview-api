@@ -198,13 +198,22 @@ Rata-rata waktu pemulihan per tiket insiden pada jendela evaluasi:
   const mttrSec = incidentCount > 0 ? Math.round(totalDowntimeSec / incidentCount) : 0;
   ```
 
-#### 6. Availability / Persentase Ketersediaan (%)
-Persentase waktu operasi normal terhadap total durasi periode dalam 2 angka desimal:
+#### 6. MTBF (*Mean Time Between Failures*)
+Rata-rata waktu sistem beroperasi normal di antara dua kegagalan (jika tidak ada insiden, nilai MTBF sama dengan Total Uptime):
 - **Rumus Matematika:**
-  $$\text{Availability (\%)} = \left(\frac{T_{\text{up}}}{T_{\text{periode}}} \times 100\right)\%$$
+  $$\text{MTBF} = \begin{cases} \text{round}\left(\dfrac{T_{\text{up}}}{N}\right), & \text{jika } N > 0 \\ T_{\text{up}}, & \text{jika } N = 0 \end{cases} \quad (\text{detik})$$
 - **Rumus Sistem (baris 235):**
   ```js
-  const availability = ((totalUptimeSec / totalPeriodSec) * 100).toFixed(2);
+  const mtbfSec = incidentCount > 0 ? Math.round(totalUptimeSec / incidentCount) : totalUptimeSec;
+  ```
+
+#### 7. Availability / Persentase Ketersediaan (%)
+Persentase waktu operasi normal terhadap total durasi periode dalam 2 angka desimal (maksimal `100.00`):
+- **Rumus Matematika:**
+  $$\text{Availability (\%)} = \min\left(100,\; \max\left(0,\; \frac{T_{\text{up}}}{T_{\text{periode}}} \times 100\right)\right)\%$$
+- **Rumus Sistem (baris 236):**
+  ```js
+  const availability = Math.min(100, Math.max(0, (totalUptimeSec / totalPeriodSec) * 100)).toFixed(2);
   ```
 
 ---
@@ -248,6 +257,7 @@ Maka hasil perhitungannya:
 - **Total Downtime ($T_{\text{down}}$):** $\min(86.400,\; 900 + 300) = 1.200\text{ detik}$ (`20m 0d`)
 - **Total Uptime ($T_{\text{up}}$):** $86.400 - 1.200 = 85.200\text{ detik}$ (`23j 40m 0d`)
 - **MTTR:** $\text{round}(1.200 / 2) = 600\text{ detik}$ (`10m 0d`)
+- **MTBF:** $\text{round}(85.200 / 2) = 42.600\text{ detik}$ (`11j 50m 0d`)
 - **Availability:** $(85.200 / 86.400) \times 100 = 98,6111...\% \rightarrow$ **`"98.61"`%**
 
 ---

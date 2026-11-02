@@ -1,9 +1,10 @@
-# Dokumentasi API Mobile: Network Tools & Export PDF
+# Dokumentasi API Mobile: Network Tools, Export PDF & Analitik SLA (MTBF)
 **Sistem Monitoring ProxView (ProxView API)**
 
 Dokumentasi ini disusun khusus untuk tim pengembang **Frontend Mobile (Flutter / Android / iOS)** dalam mengintegrasikan fitur:
 1. **Network Tools** (`Ping`, `Traceroute`, `IP Scan`)
 2. **Unduh Laporan PDF** (`Rekap Gangguan & SLA`, `Ringkasan Dashboard Infrastruktur`)
+3. **Analitik Kinerja Sistem / SLA** (`Uptime`, `Downtime`, `MTTR`, **`MTBF`**, & `Availability`)
 
 ---
 
@@ -246,11 +247,177 @@ Respons untuk endpoint laporan adalah **aliran biner murni PDF** (`application/p
 
 ---
 
-## 4. Contoh Implementasi Flutter / Dart
+## 4. API Analitik Kinerja Sistem (SLA & MTBF)
+
+Endpoint analitik digunakan oleh aplikasi Mobile untuk menampilkan **5 Kartu Metrik SLA** (`Total Uptime`, `Total Downtime`, `MTTR`, **`MTBF`**, dan `Availability`) serta grafik deret waktu per jam/hari yang selaras 100% dengan Web Dashboard.
+
+Seluruh durasi dikembalikan dalam **dua format sekaligus** (nilai detik mentah `*_sec` untuk kebutuhan kalkulasi/grafik, dan teks siap tampil `*_duration` berformat `X hari Yj Zm Sd`), sehingga aplikasi mobile tidak wajib memformat ulang detik secara manual.
+
+```
+GET /api/mobile/v1/analytics/mtbf
+GET /api/mobile/v1/analytics/summary
+GET /api/mobile/v1/analytics
+```
+
+### Standar Perhitungan Metrik SLA (ITIL)
+| Field | Satuan | Rumus Sistem | Deskripsi UI Mobile |
+|---|---|---|---|
+| `total_period_sec` | Detik (`int`) | `round((winEnd - effectiveStart) / 1000)` | Total durasi jendela observasi efektif (disesuaikan umur target) |
+| `total_uptime_sec` / `uptime_duration` | Detik / Teks | `totalPeriodSec - totalDowntimeSec` | **Total Uptime** — Waktu sistem beroperasi normal |
+| `total_downtime_sec` / `downtime_duration` | Detik / Teks | `min(totalPeriodSec, sum(overlapSec))` | **Total Downtime / Gangguan** — Akumulasi waktu insiden |
+| `mttr_sec` / `mttr_duration` | Detik / Teks | `incidentCount > 0 ? round(totalDowntimeSec / incidentCount) : 0` | **MTTR** — Rata-rata waktu pemulihan per insiden |
+| `mtbf_sec` / `mtbf_duration` | Detik / Teks | `incidentCount > 0 ? round(totalUptimeSec / incidentCount) : totalUptimeSec` | **MTBF** — Rata-rata waktu beroperasi antar kegagalan |
+| `availability` / `availability_num` | `%` (`string`/`double`) | `min(100, max(0, (totalUptimeSec / totalPeriodSec) * 100))` | **Availability** — Persentase ketersediaan sistem (`0.00` – `100.00`) |
+
+> **Catatan Logika MTBF & Filter `WARNING`:**
+> - Jika `incident_count == 0` (tidak ada kegagalan pada rentang waktu tersebut), maka nilai `mtbf_sec` sama dengan `total_uptime_sec`.
+> - Jika `severity=WARNING` dipilih, durasi peringatan dihitung sebagai **degradasi performa** (`total_degradation_sec` & `degradation_duration`) dan tidak memotong Uptime maupun Availability (`100.00%`).
+
+---
+
+### 4.1 Ringkasan KPI SLA & MTBF (Lightweight Endpoint)
+
+Endpoint ringan khusus Mobile tanpa payload array `chartData`, ideal untuk komponen **Kartu KPI / Widget MTBF** di halaman Dashboard atau Rekap Gangguan Mobile.
+
+- **URL:** `/api/mobile/v1/analytics/mtbf` *(alias: `/api/mobile/v1/analytics/summary`)*
+- **Method:** `GET`
+- **Headers:**
+  ```http
+  Authorization: Bearer <API_TOKEN>
+  Accept: application/json
+  ```
+- **Query Parameters:**
+  | Parameter | Tipe | Pilihan Nilai | Default | Keterangan |
+  |---|---|---|---|---|
+  | `period` | string | `24h`, `7d`, `30d` | `24h` | Rentang waktu evaluasi (`24 Jam`, `7 Hari`, `30 Hari`) |
+  | `severity` | string | `ALL`, `DOWN`, `CRITICAL`, `WARNING` | `ALL` | Filter level keparahan (`ALL` mengevaluasi `DOWN` & `CRITICAL`) |
+  | `target_id` | integer | ID target *(opsional)* | `null` | Filter analitik untuk 1 perangkat spesifik |
+  | `target_type` | string | `NETWORK`, `PROXMOX`, `NODE`, `VM`, `LXC` *(opsional)* | `null` | Jenis perangkat jika `target_id` disertakan |
+
+#### Contoh Respons
+
+**Berhasil — Terdapat Insiden (HTTP 200):**
+```json
+{
+  "success": true,
+  "data": {
+    "period": "24h",
+    "severity": "ALL",
+    "total_period_sec": 86400,
+    "total_uptime_sec": 85200,
+    "uptime_duration": "23j 40m",
+    "total_downtime_sec": 1200,
+    "downtime_duration": "20m",
+    "incident_count": 2,
+    "mttr_sec": 600,
+    "mttr_duration": "10m",
+    "mtbf_sec": 42600,
+    "mtbf_duration": "11j 50m",
+    "availability": "98.61",
+    "availability_num": 98.61,
+    "availability_percent": "98.61%"
+  }
+}
+```
+
+**Berhasil — Tanpa Insiden / 0 Kegagalan (HTTP 200):**
+```json
+{
+  "success": true,
+  "data": {
+    "period": "24h",
+    "severity": "ALL",
+    "total_period_sec": 86400,
+    "total_uptime_sec": 86400,
+    "uptime_duration": "1 hari",
+    "total_downtime_sec": 0,
+    "downtime_duration": "0d",
+    "incident_count": 0,
+    "mttr_sec": 0,
+    "mttr_duration": "0d",
+    "mtbf_sec": 86400,
+    "mtbf_duration": "1 hari",
+    "availability": "100.00",
+    "availability_num": 100,
+    "availability_percent": "100.00%"
+  }
+}
+```
+
+---
+
+### 4.2 Analitik SLA Lengkap beserta Grafik (`chartData`)
+
+Mengembalikan objek `summary` **dan** deret waktu `chartData` (per jam untuk `24h`, atau per hari menurut zona waktu WIB untuk `7d` dan `30d`), lengkap dengan `mtbf_sec` dan `mtbf_duration` di setiap titik waktu.
+
+- **URL:** `/api/mobile/v1/analytics`
+- **Method:** `GET`
+- **Headers:**
+  ```http
+  Authorization: Bearer <API_TOKEN>
+  Accept: application/json
+  ```
+- **Query Parameters:** Sama dengan endpoint `4.1` (`period`, `severity`, `target_id`, `target_type`).
+
+#### Contoh Respons (HTTP 200)
+```json
+{
+  "success": true,
+  "summary": {
+    "period": "24h",
+    "severity": "ALL",
+    "total_period_sec": 86400,
+    "total_uptime_sec": 85200,
+    "uptime_duration": "23j 40m",
+    "total_downtime_sec": 1200,
+    "downtime_duration": "20m",
+    "incident_count": 2,
+    "mttr_sec": 600,
+    "mttr_duration": "10m",
+    "mtbf_sec": 42600,
+    "mtbf_duration": "11j 50m",
+    "availability": "98.61"
+  },
+  "chartData": [
+    {
+      "label": "10:00",
+      "total_period_sec": 3600,
+      "total_uptime_sec": 2700,
+      "uptime_duration": "45m",
+      "total_downtime_sec": 900,
+      "downtime_duration": "15m",
+      "incident_count": 1,
+      "mttr_sec": 900,
+      "mttr_duration": "15m",
+      "mtbf_sec": 2700,
+      "mtbf_duration": "45m",
+      "availability": "75.00"
+    },
+    {
+      "label": "11:00",
+      "total_period_sec": 3600,
+      "total_uptime_sec": 3600,
+      "uptime_duration": "1j",
+      "total_downtime_sec": 0,
+      "downtime_duration": "0d",
+      "incident_count": 0,
+      "mttr_sec": 0,
+      "mttr_duration": "0d",
+      "mtbf_sec": 3600,
+      "mtbf_duration": "1j",
+      "availability": "100.00"
+    }
+  ]
+}
+```
+
+---
+
+## 5. Contoh Implementasi Flutter / Dart
 
 Berikut adalah contoh kode siap pakai menggunakan package [`dio`](https://pub.dev/packages/dio), [`path_provider`](https://pub.dev/packages/path_provider), dan [`open_filex`](https://pub.dev/packages/open_filex).
 
-### 4.1 Model Data Network Tool (`network_tool_model.dart`)
+### 5.1 Model Data Network Tool (`network_tool_model.dart`)
 
 ```dart
 class NetworkToolResponse {
@@ -276,7 +443,7 @@ class NetworkToolResponse {
 
 ---
 
-### 4.2 Network Tools Service (`network_tools_service.dart`)
+### 5.2 Network Tools Service (`network_tools_service.dart`)
 
 ```dart
 import 'package:dio/dio.dart';
@@ -361,7 +528,7 @@ class NetworkToolsService {
 
 ---
 
-### 4.3 PDF Download & Open Service (`pdf_export_service.dart`)
+### 5.3 PDF Download & Open Service (`pdf_export_service.dart`)
 
 ```dart
 import 'dart:io';
@@ -451,11 +618,112 @@ class PdfExportService {
 
 ---
 
-## 5. Ringkasan Status Code HTTP
+### 5.4 Analitik SLA & MTBF Service beserta Kartu UI (`sla_analytics_service.dart`)
+
+```dart
+import 'package:dio/dio.dart';
+
+class SlaSummaryModel {
+  final String period;
+  final String severity;
+  final int totalPeriodSec;
+  final int totalUptimeSec;
+  final String uptimeDuration;
+  final int totalDowntimeSec;
+  final String downtimeDuration;
+  final int incidentCount;
+  final int mttrSec;
+  final String mttrDuration;
+  final int mtbfSec;
+  final String mtbfDuration;
+  final double availability;
+
+  SlaSummaryModel({
+    required this.period,
+    required this.severity,
+    required this.totalPeriodSec,
+    required this.totalUptimeSec,
+    required this.uptimeDuration,
+    required this.totalDowntimeSec,
+    required this.downtimeDuration,
+    required this.incidentCount,
+    required this.mttrSec,
+    required this.mttrDuration,
+    required this.mtbfSec,
+    required this.mtbfDuration,
+    required this.availability,
+  });
+
+  factory SlaSummaryModel.fromJson(Map<String, dynamic> json) {
+    return SlaSummaryModel(
+      period: json['period'] ?? '24h',
+      severity: json['severity'] ?? 'ALL',
+      totalPeriodSec: (json['total_period_sec'] ?? 0) as int,
+      totalUptimeSec: (json['total_uptime_sec'] ?? 0) as int,
+      uptimeDuration: json['uptime_duration'] ?? '0d',
+      totalDowntimeSec: (json['total_downtime_sec'] ?? 0) as int,
+      downtimeDuration: json['downtime_duration'] ?? '0d',
+      incidentCount: (json['incident_count'] ?? 0) as int,
+      mttrSec: (json['mttr_sec'] ?? 0) as int,
+      mttrDuration: json['mttr_duration'] ?? '0d',
+      mtbfSec: (json['mtbf_sec'] ?? 0) as int,
+      mtbfDuration: json['mtbf_duration'] ?? '0d',
+      availability: double.tryParse(json['availability']?.toString() ?? '100') ?? 100.0,
+    );
+  }
+}
+
+class SlaAnalyticsService {
+  final Dio _dio;
+
+  SlaAnalyticsService({
+    required String baseUrl,
+    required String apiToken,
+  }) : _dio = Dio(
+          BaseOptions(
+            baseUrl: baseUrl,
+            headers: {
+              'Authorization': 'Bearer $apiToken',
+              'Accept': 'application/json',
+            },
+          ),
+        );
+
+  /// Ambil ringkasan KPI SLA termasuk MTBF untuk kartu metrik Mobile
+  Future<SlaSummaryModel> fetchSlaSummary({
+    String period = '24h',
+    String severity = 'ALL',
+    int? targetId,
+    String? targetType,
+  }) async {
+    final response = await _dio.get(
+      '/api/mobile/v1/analytics/mtbf',
+      queryParameters: {
+        'period': period,
+        'severity': severity,
+        if (targetId != null) 'target_id': targetId,
+        if (targetType != null) 'target_type': targetType,
+      },
+    );
+
+    final data = response.data['data'] as Map<String, dynamic>;
+    return SlaSummaryModel.fromJson(data);
+  }
+}
+```
+
+**Contoh Penggunaan pada Widget Kartu MTBF di Flutter:**
+- **Judul Kartu:** `"MTBF"`
+- **Nilai Utama:** `summary.mtbfDuration` *(contoh: `"11j 50m"` atau `"1 hari"`)*
+- **Sub-judul Kartu:** `"Rata-rata waktu beroperasi antar kegagalan"`
+
+---
+
+## 6. Ringkasan Status Code HTTP
 
 | Status Code | Arti | Tindakan di Mobile App |
 |---|---|---|
-| **200 OK** | Permintaan sukses dieksekusi. | Tampilkan hasil ke UI console atau buka PDF. |
+| **200 OK** | Permintaan sukses dieksekusi. | Tampilkan hasil ke UI console, Kartu KPI SLA/MTBF, atau buka PDF. |
 | **400 Bad Request** | Format parameter tidak valid (IP/Subnet salah atau karakter ilegal). | Tampilkan dialog atau Snackbar peringatan ke pengguna: `response.data['message']`. |
 | **401 Unauthorized** | Token otorisasi tidak ada, salah, atau kedaluwarsa. | Arahkan pengguna ke halaman Login Mobile dan bersihkan local storage token. |
 | **403 Forbidden** | Akun dinonaktifkan oleh Administrator. | Tampilkan dialog akun terblokir dan batalkan sesi. |

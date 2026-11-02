@@ -222,6 +222,20 @@ const PERIODS = {
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
+const formatPreciseDuration = (totalSeconds) => {
+    if (!totalSeconds || totalSeconds <= 0) return '0d';
+    const d = Math.floor(totalSeconds / 86400);
+    const h = Math.floor((totalSeconds % 86400) / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = Math.floor(totalSeconds % 60);
+    const parts = [];
+    if (d > 0) parts.push(`${d} hari`);
+    if (h > 0) parts.push(`${h}j`);
+    if (m > 0) parts.push(`${m}m`);
+    if (s > 0 || parts.length === 0) parts.push(`${s}d`);
+    return parts.join(' ');
+};
+
 const hitungMetrikITIL = (incidents, winStart, winEnd) => {
     const overlapped = incidents
         .map(i => ({ sec: Math.max(0, (Math.min(i.end, winEnd) - Math.max(i.start, winStart)) / 1000) }))
@@ -232,14 +246,20 @@ const hitungMetrikITIL = (incidents, winStart, winEnd) => {
     const totalUptimeSec = totalPeriodSec - totalDowntimeSec;
     const incidentCount = overlapped.length;
     const mttrSec = incidentCount > 0 ? Math.round(totalDowntimeSec / incidentCount) : 0;
-    const availability = ((totalUptimeSec / totalPeriodSec) * 100).toFixed(2);
+    const mtbfSec = incidentCount > 0 ? Math.round(totalUptimeSec / incidentCount) : totalUptimeSec;
+    const availability = Math.min(100, Math.max(0, (totalUptimeSec / totalPeriodSec) * 100)).toFixed(2);
 
     return {
         total_period_sec: totalPeriodSec,
         total_uptime_sec: totalUptimeSec,
+        uptime_duration: formatPreciseDuration(totalUptimeSec),
         total_downtime_sec: totalDowntimeSec,
+        downtime_duration: formatPreciseDuration(totalDowntimeSec),
         incident_count: incidentCount,
         mttr_sec: mttrSec,
+        mttr_duration: formatPreciseDuration(mttrSec),
+        mtbf_sec: mtbfSec,
+        mtbf_duration: formatPreciseDuration(mtbfSec),
         availability
     };
 };
@@ -303,12 +323,19 @@ export const fetchAnalyticsData = async ({
     // WARNING: durasi dilaporkan sebagai degradasi, tidak memotong uptime
     const terapkanFilter = (m) => {
         if (severityFilter !== 'WARNING') return m;
-        const { total_downtime_sec, ...rest } = m;
+        const { total_downtime_sec, downtime_duration, ...rest } = m;
+        const uptimeSec = m.total_period_sec;
+        const mtbfSec = m.incident_count > 0 ? Math.round(uptimeSec / m.incident_count) : uptimeSec;
         return {
             ...rest,
             total_degradation_sec: total_downtime_sec,
+            degradation_duration: downtime_duration,
             total_downtime_sec: 0,
-            total_uptime_sec: m.total_period_sec,
+            downtime_duration: '0d',
+            total_uptime_sec: uptimeSec,
+            uptime_duration: formatPreciseDuration(uptimeSec),
+            mtbf_sec: mtbfSec,
+            mtbf_duration: formatPreciseDuration(mtbfSec),
             availability: '100.00'
         };
     };
@@ -359,5 +386,31 @@ export const getAnalytics = async (req, res) => {
     } catch (error) {
         console.error("Error Analytics:", error);
         res.status(500).json({ success: false, message: 'Gagal memuat grafik analitik' });
+    }
+};
+
+// ==========================================
+// 5. ENDPOINT KHUSUS MOBILE: RINGKASAN SLA & MTBF
+// ==========================================
+export const getMobileAnalyticsSummary = async (req, res) => {
+    try {
+        const { summary } = await fetchAnalyticsData({
+            period: req.query.period,
+            severity: req.query.severity,
+            targetId: req.query.target_id,
+            targetType: req.query.target_type
+        });
+
+        res.json({
+            success: true,
+            data: {
+                ...summary,
+                availability_num: parseFloat(summary.availability),
+                availability_percent: `${summary.availability}%`
+            }
+        });
+    } catch (error) {
+        console.error("Error getMobileAnalyticsSummary:", error);
+        res.status(500).json({ success: false, message: 'Gagal memuat ringkasan metrik SLA & MTBF' });
     }
 };

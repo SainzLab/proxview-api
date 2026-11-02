@@ -117,11 +117,11 @@
       </div>
 
       <!-- KPI Cards -->
-      <div class="grid grid-cols-4 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
         <!-- TOTAL UPTIME -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-emerald-300 transition-colors">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 relative z-10"><i class="ph-bold ph-arrow-circle-up text-emerald-500"></i> Total Uptime</p>
-          <h3 class="text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.total_uptime_sec) }}</h3>
+          <h3 class="text-2xl xl:text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.total_uptime_sec) }}</h3>
           <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">Waktu sistem beroperasi normal</p>
         </div>
         <!-- TOTAL DOWNTIME / GANGGUAN (DINAMIS) -->
@@ -130,7 +130,7 @@
             <i class="ph-bold ph-arrow-circle-down" :class="analyticsSeverity === 'CRITICAL' || analyticsSeverity === 'WARNING' ? 'text-amber-500' : 'text-rose-500'"></i> 
             {{ analyticsSeverity === 'ALL' ? 'Total Downtime & Gangguan' : (analyticsSeverity === 'DOWN' ? 'Total Downtime' : 'Total Gangguan') }}
           </p>
-          <h3 class="text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">
+          <h3 class="text-2xl xl:text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">
             {{ formatPreciseDuration(analytics.summary.total_downtime_sec) }}
           </h3>
           <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">
@@ -140,13 +140,19 @@
         <!-- MTTR -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-cyan-300 transition-colors">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 relative z-10"><i class="ph-bold ph-timer text-cyan-500"></i> MTTR</p>
-          <h3 class="text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.mttr_sec) }}</h3>
+          <h3 class="text-2xl xl:text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.mttr_sec) }}</h3>
           <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">Rata-rata waktu pemulihan per insiden</p>
+        </div>
+        <!-- MTBF -->
+        <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-indigo-300 transition-colors">
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 relative z-10"><i class="ph-bold ph-pulse text-indigo-500"></i> MTBF</p>
+          <h3 class="text-2xl xl:text-3xl font-black text-slate-900 font-mono tracking-tight leading-none relative z-10">{{ formatPreciseDuration(analytics.summary.mtbf_sec) }}</h3>
+          <p class="text-[11px] text-slate-500 mt-2 relative z-10 font-medium">Rata-rata waktu beroperasi antar kegagalan</p>
         </div>
         <!-- AVAILABILITY -->
         <div class="bg-white border border-slate-200/80 rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] relative overflow-hidden group hover:border-emerald-300 transition-colors">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5 relative z-10"><i class="ph-bold ph-shield-check text-emerald-500"></i> Availability</p>
-          <h3 class="text-3xl font-black font-mono tracking-tight leading-none relative z-10" :class="availabilityColor">{{ analytics.summary.availability }}<span class="text-sm font-semibold ml-0.5">%</span></h3>
+          <h3 class="text-2xl xl:text-3xl font-black font-mono tracking-tight leading-none relative z-10" :class="availabilityColor">{{ analytics.summary.availability }}<span class="text-sm font-semibold ml-0.5">%</span></h3>
           <div class="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden relative z-10">
             <div class="h-full rounded-full transition-all duration-700" :class="availabilityBar" :style="{ width: Math.min(100, analytics.summary.availability) + '%' }"></div>
           </div>
@@ -453,7 +459,7 @@ const filterLabelText = computed(() => {
 });
 
 const analytics = ref({
-  summary: { total_uptime_sec: 0, total_downtime_sec: 0, mttr_sec: 0, availability: 100, incident_count: 0 },
+  summary: { total_uptime_sec: 0, total_downtime_sec: 0, mttr_sec: 0, mtbf_sec: 0, availability: 100, incident_count: 0 },
   chartData: []
 });
 
@@ -550,6 +556,7 @@ const fetchAnalytics = async () => {
         total_uptime_sec: humanUptimeSec,
         total_downtime_sec: sum.total_downtime_sec,
         mttr_sec: sum.mttr_sec,
+        mtbf_sec: sum.mtbf_sec ?? humanUptimeSec,
         availability: parseFloat(sum.availability),
         incident_count: sum.incident_count || 0
       },
@@ -559,6 +566,7 @@ const fetchAnalytics = async () => {
         total_downtime_sec: d.total_downtime_sec,
         incident_count: d.incident_count || 0,
         mttr_sec: d.mttr_sec,
+        mtbf_sec: d.mtbf_sec ?? d.total_uptime_sec,
         availability: parseFloat(d.availability)
       }))
     };
