@@ -34,14 +34,14 @@
         <!-- Area Input Target -->
         <div class="lg:col-span-6">
           <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
-            {{ form.tool === 'ipscan' ? 'Alamat Network IP & Prefix Subnet' : 'Alamat Target (IPv4 / Domain)' }}
+            {{ form.tool === 'ipscan' ? 'Alamat Network IP & Prefix Subnet' : 'Alamat Target (IPv4 / IPv6 / Domain)' }}
           </label>
           
           <!-- Mode IP Scan: Input IP + Dropdown Prefix Subnet -->
           <div v-if="form.tool === 'ipscan'" class="flex gap-2.5">
             <div class="relative flex-1">
               <i class="ph-bold ph-network absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-              <input v-model="form.target_ip" type="text" placeholder="Misal: 192.168.1.0" autocomplete="off" :disabled="isLoading" class="w-full h-[42px] pl-10 pr-3.5 bg-white border border-slate-200 rounded-lg text-sm font-mono font-medium text-slate-900 placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-60" />
+              <input v-model="form.target_ip" type="text" placeholder="Misal: 192.168.1.0 atau 2001:db8::" autocomplete="off" :disabled="isLoading" class="w-full h-[42px] pl-10 pr-3.5 bg-white border border-slate-200 rounded-lg text-sm font-mono font-medium text-slate-900 placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-60" />
             </div>
             <select v-model="form.target_subnet" :disabled="isLoading" aria-label="Prefix Subnet" class="w-28 h-[42px] px-3 bg-white border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 cursor-pointer transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-60">
               <option v-for="prefix in SUBNET_PREFIXES" :key="prefix" :value="prefix">{{ prefix }}</option>
@@ -51,7 +51,7 @@
           <!-- Mode Ping / Traceroute: Input Teks Penuh -->
           <div v-else class="relative">
             <i class="ph-bold ph-globe absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-            <input v-model="form.target" type="text" placeholder="Contoh: 8.8.8.8 atau google.com" autocomplete="off" :disabled="isLoading" class="w-full h-[42px] pl-10 pr-3.5 bg-white border border-slate-200 rounded-lg text-sm font-mono font-medium text-slate-900 placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-60" />
+            <input v-model="form.target" type="text" placeholder="Contoh: 8.8.8.8, google.com, atau 2001:4860::8888" autocomplete="off" :disabled="isLoading" class="w-full h-[42px] pl-10 pr-3.5 bg-white border border-slate-200 rounded-lg text-sm font-mono font-medium text-slate-900 placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-60" />
           </div>
         </div>
 
@@ -145,7 +145,7 @@ const TOOL_LABELS = {
 };
 
 // Opsi prefix subnet untuk IP Scan
-const SUBNET_PREFIXES = ['/16', '/23', '/24', '/32'];
+const SUBNET_PREFIXES = ['/16', '/23', '/24', '/32', '/64', '/128'];
 
 const form = reactive({
   tool: 'ping',
@@ -179,10 +179,14 @@ const hasTarget = computed(() =>
 const commandPreview = computed(() => {
   if (form.tool === 'ipscan') {
     const ip = form.target_ip.trim() || '<ip_network>';
-    return `nmap -sn ${ip}${form.target_subnet}`;
+    const isV6 = ip.includes(':');
+    return `nmap ${isV6 ? '-6 ' : ''}-sn ${ip}${form.target_subnet}`;
   }
   const host = form.target.trim() || '<target>';
-  return form.tool === 'ping' ? `ping -c 10 ${host}` : `traceroute ${host}`;
+  const isV6 = host.includes(':');
+  return form.tool === 'ping'
+    ? (isV6 ? `ping -6 -c 4 ${host}` : `ping -c 10 ${host}`)
+    : (isV6 ? `traceroute -6 ${host}` : `traceroute ${host}`);
 });
 
 const scrollToBottom = async () => {
@@ -226,10 +230,13 @@ const runNetworkTool = async () => {
   errorMessage.value = '';
 
   const finalTarget = form.tool === 'ipscan' ? form.target_ip.trim() + form.target_subnet : form.target.trim();
+  const isV6 = finalTarget.includes(':');
   
   lastExecutedCommand.value = form.tool === 'ipscan' 
-    ? `nmap -sn ${finalTarget}` 
-    : (form.tool === 'ping' ? `ping -c 10 ${finalTarget}` : `traceroute ${finalTarget}`);
+    ? `nmap ${isV6 ? '-6 ' : ''}-sn ${finalTarget}` 
+    : (form.tool === 'ping'
+        ? (isV6 ? `ping -6 -c 4 ${finalTarget}` : `ping -c 10 ${finalTarget}`)
+        : (isV6 ? `traceroute -6 ${finalTarget}` : `traceroute ${finalTarget}`));
     
   abortController = new AbortController();
 

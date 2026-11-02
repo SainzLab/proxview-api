@@ -55,7 +55,9 @@ interface NetworkToolResponse {
 
 ### 2.1 Tool: Ping (ICMP Echo)
 
-Menguji konektivitas dan latensi ke host target sebanyak **10 paket**.
+Menguji konektivitas dan latensi ke host target. Sistem otomatis mendeteksi target IPv4 maupun IPv6:
+- **IPv4 / Domain:** Menjalankan `ping -c 10 <target>` (10 paket).
+- **IPv6:** Menjalankan `ping -6 -c 4 <target>` (4 paket).
 
 - **URL:** `/api/mobile/v1/tools/ping`
 - **Method:** `POST`
@@ -70,10 +72,10 @@ Menguji konektivitas dan latensi ke host target sebanyak **10 paket**.
     "target": "8.8.8.8"
   }
   ```
+  *(Atau target IPv6: `{"target": "2001:4860::8888"}`)*
 - **Aturan Validasi Input (`target`):**
-  - Hanya menerima huruf, angka, titik (`.`), dan tanda hubung/strip (`-`).
+  - Menerima format **IPv4** (mis. `192.168.1.1`), **IPv6** (mis. `2001:4860::8888`, `::1`), atau **Hostname/Domain** (mis. `google.com`).
   - Maksimal 253 karakter.
-  - Nilai target berupa IP (mis. `192.168.1.1`) atau Hostname/Domain (mis. `google.com`).
   - Karakter berbahaya (`;`, `&`, `|`, `$`, spasi, kutip) otomatis ditolak dengan kode 400 (Anti OS Command Injection).
 
 #### Contoh Respons
@@ -92,7 +94,7 @@ Menguji konektivitas dan latensi ke host target sebanyak **10 paket**.
 {
   "success": false,
   "output": "",
-  "message": "Target tidak valid. Hanya huruf, angka, titik, dan strip yang diperbolehkan."
+  "message": "Target tidak valid. Hanya format IPv4, IPv6, atau domain yang diperbolehkan."
 }
 ```
 
@@ -109,7 +111,9 @@ Menguji konektivitas dan latensi ke host target sebanyak **10 paket**.
 
 ### 2.2 Tool: Traceroute
 
-Melacak rute lompatan router (*hops*) dari server monitoring menuju host tujuan.
+Melacak rute lompatan router (*hops*) dari server monitoring menuju host tujuan. Otomatis menggunakan flag `-6` jika target terdeteksi sebagai IPv6:
+- **IPv4 / Domain:** `traceroute <target>`
+- **IPv6:** `traceroute -6 <target>`
 
 - **URL:** `/api/mobile/v1/tools/traceroute`
 - **Method:** `POST`
@@ -124,7 +128,8 @@ Melacak rute lompatan router (*hops*) dari server monitoring menuju host tujuan.
     "target": "google.com"
   }
   ```
-- **Aturan Validasi Input:** Sama dengan aturan Ping (Regex ketat huruf, angka, titik, strip).
+  *(Atau target IPv6: `{"target": "2001:4860::8888"}`)*
+- **Aturan Validasi Input:** Sama dengan aturan Ping (Format IPv4, IPv6, atau Domain tanpa karakter berbahaya).
 
 #### Contoh Respons
 
@@ -141,7 +146,9 @@ Melacak rute lompatan router (*hops*) dari server monitoring menuju host tujuan.
 
 ### 2.3 Tool: IP Scan (Nmap Host Discovery)
 
-Memindai daftar host yang aktif pada suatu subnet menggunakan perintah `nmap -sn` (Ping Scan tanpa port scan) sehingga cepat dan aman.
+Memindai daftar host yang aktif pada suatu subnet menggunakan perintah `nmap` (Ping Scan tanpa port scan). Otomatis menggunakan flag `-6` jika target terdeteksi sebagai IPv6:
+- **IPv4 Subnet:** `nmap -sn <target>` (mis. `192.168.1.0/24`)
+- **IPv6 Subnet:** `nmap -6 -sn <target>` (mis. `2001:db8::/64`)
 
 - **URL:** `/api/mobile/v1/tools/ipscan`
 - **Method:** `POST`
@@ -156,10 +163,11 @@ Memindai daftar host yang aktif pada suatu subnet menggunakan perintah `nmap -sn
     "target": "192.168.1.0/24"
   }
   ```
+  *(Atau target IPv6: `{"target": "2001:db8::/64"}`)*
 - **Aturan Validasi Input (`target`):**
-  - Wajib format IPv4 dengan prefix CIDR opsional: `/^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$/`.
-  - Setiap oktet harus berada di rentang `0` s.d. `255`.
-  - Prefix subnet dibatasi dari `16` sampai `32` (misal `/16`, `/23`, `/24`, `/32`) untuk mencegah beban server memindai rentang IP yang terlalu masif (seperti `/8`).
+  - Menerima format **IPv4** (prefix `/16` s.d. `/32`, mis. `192.168.1.0/24`) atau **IPv6** (prefix `/1` s.d. `/128`, mis. `2001:db8::/64`).
+  - Untuk IPv4: setiap oktet harus berada di rentang `0` s.d. `255`.
+  - Untuk IPv6: alamat hex valid yang dapat diverifikasi oleh `isIPv6`.
 
 #### Contoh Respons
 
@@ -177,7 +185,7 @@ Memindai daftar host yang aktif pada suatu subnet menggunakan perintah `nmap -sn
 {
   "success": false,
   "output": "",
-  "message": "Target tidak valid. Gunakan format IP atau IP/prefix (contoh: 192.168.1.0/24, prefix /16 sampai /32)."
+  "message": "Target tidak valid. Gunakan format IP atau IP/prefix (contoh: 192.168.1.0/24, 2001:db8::/64)."
 }
 ```
 

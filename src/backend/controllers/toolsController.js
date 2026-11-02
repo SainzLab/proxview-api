@@ -1,4 +1,5 @@
 import { spawn, exec } from 'child_process';
+import { isIPv6 } from 'net';
 import { logSystemEvent } from './systemLogController.js';
 
 // ------------------------------------------------------------------
@@ -12,7 +13,8 @@ import { logSystemEvent } from './systemLogController.js';
 
 const LOG_SOURCE = 'NETWORK TOOLS';
 
-const TARGET_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9.-]*$/;
+// Mengizinkan format IPv4, Domain, dan IPv6 (termasuk prefix IPv6/IPv4 seperti /64)
+const TARGET_REGEX = /^[a-zA-Z0-9.:-]+(?:\/[0-9]{1,3})?$/;
 const MAX_TARGET_LENGTH = 253;
 const TOOL_TIMEOUT_MS = 120 * 1000;
 const IPSCAN_TIMEOUT_MS = 5 * 60 * 1000; // scan subnet besar (mis. /16) butuh waktu lebih lama
@@ -78,26 +80,51 @@ const recordToolLog = (level, message) => {
 // ==================================================================
 // HELPER VALIDASI INPUT TARGET
 // ==================================================================
-// Validasi target host/IP/domain untuk Ping & Traceroute
+// Validasi target host/IP/domain untuk Ping & Traceroute (IPv4, IPv6, atau Domain)
 const getValidHostTarget = (req) => {
     const target = typeof req.body?.target === 'string' ? req.body.target.trim() : '';
     if (!target || target.length > MAX_TARGET_LENGTH || !TARGET_REGEX.test(target)) return null;
+
+    const baseHost = target.split('/')[0];
+    if (isIPv6(baseHost)) {
+        return target;
+    }
+
+    // Jika mengandung titik dua (colon) tapi bukan IPv6 valid, tolak
+    if (target.includes(':')) return null;
+
+    // Untuk domain/IPv4, pastikan tidak diawali atau diakhiri titik/strip
+    if (/^[.-]|[.-]$/.test(baseHost)) return null;
+
     return target;
 };
 
-// Validasi format + rentang nilai untuk IP Scan (octet 0-255, prefix /16 s.d. /32)
+// Validasi format + rentang nilai untuk IP Scan (IPv4 prefix /16 s.d. /32, IPv6 prefix /1 s.d. /128)
 const getValidScanTarget = (req) => {
     const target = typeof req.body?.target === 'string' ? req.body.target.trim() : '';
-    if (!target || !IPSCAN_REGEX.test(target)) return null;
+    if (!target || target.length > MAX_TARGET_LENGTH || !TARGET_REGEX.test(target)) return null;
 
     const [ip, prefix] = target.split('/');
-    if (ip.split('.').some((octet) => Number(octet) > 255)) return null;
 
-    if (prefix !== undefined) {
-        const p = Number(prefix);
-        if (p > 32 || p < IPSCAN_MIN_PREFIX) return null;
+    if (isIPv6(ip)) {
+        if (prefix !== undefined) {
+            const p = Number(prefix);
+            if (isNaN(p) || p < 1 || p > 128) return null;
+        }
+        return target;
     }
-    return target;
+
+    if (IPSCAN_REGEX.test(target)) {
+        if (ip.split('.').some((octet) => Number(octet) > 255)) return null;
+
+        if (prefix !== undefined) {
+            const p = Number(prefix);
+            if (p > 32 || p < IPSCAN_MIN_PREFIX) return null;
+        }
+        return target;
+    }
+
+    return null;
 };
 
 const rejectInvalidHost = (req, res, toolLabel, channel) => {
@@ -111,7 +138,7 @@ const rejectInvalidHost = (req, res, toolLabel, channel) => {
     return res.status(400).json({
         success: false,
         output: '',
-        message: 'Target tidak valid. Hanya huruf, angka, titik, dan strip yang diperbolehkan.'
+        message: 'Target tidak valid. Hanya format IPv4, IPv6, atau domain yang diperbolehkan.'
     });
 };
 
@@ -126,7 +153,7 @@ const rejectInvalidScan = (req, res, channel) => {
     return res.status(400).json({
         success: false,
         output: '',
-        message: `Target tidak valid. Gunakan format IP atau IP/prefix (contoh: 192.168.1.0/24, prefix /${IPSCAN_MIN_PREFIX} sampai /32).`
+        message: `Target tidak valid. Gunakan format IP atau IP/prefix (contoh: 192.168.1.0/24, 2001:db8::/64).`
     });
 };
 
@@ -261,12 +288,17 @@ export const runPing = (req, res) => {
     const target = getValidHostTarget(req);
     if (!target) return rejectInvalidHost(req, res, 'Ping', 'Web');
 
+    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const args = isV6
+        ? (isWin ? ['-6', '-n', '4', target] : ['-6', '-c', '4', target])
+        : [isWin ? '-n' : '-c', '10', target];
+
     streamCommand(req, res, {
         toolKey: 'ping',
         toolLabel: 'Ping',
         target,
         command: 'ping',
-        args: [isWin ? '-n' : '-c', '10', target]
+        args
     });
 };
 
@@ -275,12 +307,15 @@ export const runTraceroute = (req, res) => {
     const target = getValidHostTarget(req);
     if (!target) return rejectInvalidHost(req, res, 'Traceroute', 'Web');
 
+    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const args = isV6 ? ['-6', target] : [target];
+
     streamCommand(req, res, {
         toolKey: 'traceroute',
         toolLabel: 'Traceroute',
         target,
         command: isWin ? 'tracert' : 'traceroute',
-        args: [target]
+        args
     });
 };
 
@@ -289,12 +324,15 @@ export const runIpScan = (req, res) => {
     const target = getValidScanTarget(req);
     if (!target) return rejectInvalidScan(req, res, 'Web');
 
+    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const args = isV6 ? ['-6', '-sn', target] : ['-sn', target];
+
     streamCommand(req, res, {
         toolKey: 'ipscan',
         toolLabel: 'IP Scan',
         target,
         command: 'nmap',
-        args: ['-sn', target],
+        args,
         timeoutMs: IPSCAN_TIMEOUT_MS,
         missingMessage: "[Error] Aplikasi 'nmap' belum terinstal di server backend. Silakan jalankan 'apt install nmap' terlebih dahulu."
     });
@@ -377,7 +415,11 @@ export const runMobilePing = (req, res) => {
     const target = getValidHostTarget(req);
     if (!target) return rejectInvalidHost(req, res, 'Ping', 'Mobile');
 
-    const cmd = isWin ? `ping -n 10 ${target}` : `ping -c 10 ${target}`;
+    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const cmd = isV6
+        ? (isWin ? `ping -6 -n 4 ${target}` : `ping -6 -c 4 ${target}`)
+        : (isWin ? `ping -n 10 ${target}` : `ping -c 10 ${target}`);
+
     execCommandJson(req, res, {
         toolKey: 'ping',
         toolLabel: 'Ping',
@@ -392,7 +434,11 @@ export const runMobileTraceroute = (req, res) => {
     const target = getValidHostTarget(req);
     if (!target) return rejectInvalidHost(req, res, 'Traceroute', 'Mobile');
 
-    const cmd = isWin ? `tracert ${target}` : `traceroute ${target}`;
+    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const cmd = isWin
+        ? (isV6 ? `tracert -6 ${target}` : `tracert ${target}`)
+        : (isV6 ? `traceroute -6 ${target}` : `traceroute ${target}`);
+
     execCommandJson(req, res, {
         toolKey: 'traceroute',
         toolLabel: 'Traceroute',
@@ -407,7 +453,9 @@ export const runMobileIpScan = (req, res) => {
     const target = getValidScanTarget(req);
     if (!target) return rejectInvalidScan(req, res, 'Mobile');
 
-    const cmd = `nmap -sn ${target}`;
+    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const cmd = isV6 ? `nmap -6 -sn ${target}` : `nmap -sn ${target}`;
+
     execCommandJson(req, res, {
         toolKey: 'ipscan',
         toolLabel: 'IP Scan',
