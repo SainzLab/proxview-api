@@ -26,3 +26,4 @@ logs/
 *.sln
 *.swp
 src/backend/serviceAccountKey.json
+SECURITY_AUDIT_REPORT.md
