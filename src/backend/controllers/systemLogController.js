@@ -1,6 +1,5 @@
 import db from '../config/database.js';
 
-// 1. API: Menarik log untuk ditampilkan di Frontend Vue (mendukung dynamic limit untuk unlimited scroll)
 export const getSystemLogs = async (req, res) => {
     try {
         const requestedLimit = parseInt(req.query.limit, 10);
@@ -21,7 +20,7 @@ export const getSystemLogs = async (req, res) => {
              LIMIT ?`,
             [safeLimit]
         );
-        
+
         res.json({
             success: true,
             total: countRow?.total || rows.length,
@@ -33,7 +32,6 @@ export const getSystemLogs = async (req, res) => {
     }
 };
 
-// 2. Helper Internal: Gunakan fungsi ini jika Anda ingin mencatat log dari file 
 export const logSystemEvent = async (level, source, message) => {
     try {
         await db.query(

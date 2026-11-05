@@ -2,11 +2,6 @@ import { fetchIncidentsData, fetchAnalyticsData } from './incidentController.js'
 import { fetchDashboardSummaryData } from './dashboardController.js';
 import { generateRekapGangguanPdf, generateDashboardSummaryPdf, PERIOD_CONFIG } from '../services/pdfExportService.js';
 
-/**
- * Controller Export PDF: Rekapitulasi Gangguan & SLA
- * GET /api/export/pdf/incidents
- * GET /api/mobile/v1/export/pdf/incidents
- */
 export const exportIncidentsPdf = async (req, res) => {
     try {
         const period = String(req.query.period || '24h').toLowerCase();
@@ -40,11 +35,6 @@ export const exportIncidentsPdf = async (req, res) => {
     }
 };
 
-/**
- * Controller Export PDF: Ringkasan Infrastruktur & SLA Dashboard
- * GET /api/export/pdf/dashboard
- * GET /api/mobile/v1/export/pdf/dashboard
- */
 export const exportDashboardPdf = async (req, res) => {
     try {
         const rawTf = String(req.query.timeframe || '1h').toLowerCase();
@@ -90,11 +80,6 @@ export const exportDashboardPdf = async (req, res) => {
     }
 };
 
-/**
- * Router Serbaguna: Mengarahkan ekspor berdasarkan parameter query `type`
- * Default: `incidents`
- * GET /api/mobile/v1/export/pdf?type=incidents|dashboard
- */
 export const exportPdf = async (req, res) => {
     const type = String(req.query.type || 'incidents').toLowerCase();
     if (type === 'dashboard') {

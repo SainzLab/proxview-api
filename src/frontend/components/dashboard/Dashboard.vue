@@ -1,7 +1,6 @@
 <template>
   <main class="bg-[#f8f9fa] p-8 pb-12 overflow-x-hidden min-h-screen font-sans animate-fade-in">
-    
-    <!-- Header Dashboard -->
+
     <div class="flex justify-between items-end mb-8">
       <div>
         <h2 class="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-2.5">
@@ -28,10 +27,8 @@
       </div>
     </div>
 
-    <!-- Widgets Grid (4 Kartu Utama) -->
     <div class="grid grid-cols-4 gap-5 mb-6">
-      
-      <!-- Widget 1: Total Pengguna -->
+
       <div class="bg-white border border-slate-200/80 p-5 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <div class="flex justify-between items-start mb-2">
           <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Pengguna</p>
@@ -47,7 +44,6 @@
         </div>
       </div>
 
-      <!-- Widget 2: Server Proxmox VE -->
       <div class="bg-white border border-slate-200/80 p-5 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <div class="flex justify-between items-start mb-2">
           <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Server Fisik</p>
@@ -61,7 +57,6 @@
           <span class="text-sm font-medium text-slate-500 font-sans tracking-normal">Node Online</span>
         </h3>
         <div class="flex items-center justify-between text-xs font-medium mt-4">
-          <!-- Pastel Badges Pill -->
           <span 
             class="flex items-center gap-1.5 px-2 py-0.5 rounded-md border" 
             :class="summary.proxmox.health_percent === 100 ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : (summary.proxmox.health_percent > 0 ? 'bg-amber-50 text-amber-700 border-amber-200/60' : 'bg-rose-50 text-rose-700 border-rose-200/60')"
@@ -73,7 +68,6 @@
         </div>
       </div>
 
-      <!-- Widget 3: Target Ping (ICMP) -->
       <div class="bg-white border border-slate-200/80 p-5 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <div class="flex justify-between items-start mb-2">
           <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Ping (ICMP)</p>
@@ -96,7 +90,6 @@
         </div>
       </div>
 
-      <!-- Widget 4: Target TCP Port -->
       <div class="bg-white border border-slate-200/80 p-5 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <div class="flex justify-between items-start mb-2">
           <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target TCP Port</p>
@@ -121,7 +114,6 @@
 
     </div>
 
-    <!-- Chart Area 1: Rata-rata Penggunaan CPU, RAM & IO Delay -->
     <div class="bg-white border border-slate-200/80 p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] mb-6">
       <div class="flex justify-between items-center mb-6">
         <div>
@@ -157,13 +149,11 @@
           </div>
         </div>
       </div>
-      <!-- Canvas Wrapper -->
       <div class="h-64 w-full relative">
         <canvas ref="chartCanvas"></canvas>
       </div>
     </div>
 
-    <!-- Chart Area 2: Grafik & Ringkasan Total Uptime, Downtime, MTTR, MTBF & Availability -->
     <div class="bg-white border border-slate-200/80 p-6 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] mb-6">
       <div class="flex flex-wrap justify-between items-center gap-4 mb-5">
         <div>
@@ -175,14 +165,12 @@
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
-          <!-- Filter Level Severity SLA -->
           <div class="flex bg-slate-50 border border-slate-200 rounded-lg p-1">
             <button @click="setSlaSeverity('ALL')" class="px-3 py-1 rounded-md text-xs font-semibold transition border" :class="slaSeverity === 'ALL' ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] border-slate-200' : 'text-slate-500 hover:text-slate-900 border-transparent'">Semua</button>
             <button @click="setSlaSeverity('DOWN')" class="px-3 py-1 rounded-md text-xs font-semibold transition border" :class="slaSeverity === 'DOWN' ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] border-slate-200' : 'text-slate-500 hover:text-slate-900 border-transparent'">Down</button>
             <button @click="setSlaSeverity('CRITICAL')" class="px-3 py-1 rounded-md text-xs font-semibold transition border" :class="slaSeverity === 'CRITICAL' ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] border-slate-200' : 'text-slate-500 hover:text-slate-900 border-transparent'">Critical</button>
             <button @click="setSlaSeverity('WARNING')" class="px-3 py-1 rounded-md text-xs font-semibold transition border" :class="slaSeverity === 'WARNING' ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] border-slate-200' : 'text-slate-500 hover:text-slate-900 border-transparent'">Warning</button>
           </div>
-          <!-- Filter Periode SLA -->
           <div class="flex bg-slate-50 border border-slate-200 rounded-lg p-1">
             <button @click="setSlaPeriod('24h')" class="px-3.5 py-1 rounded-md text-xs font-semibold transition border" :class="slaPeriod === '24h' ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] border-slate-200' : 'text-slate-500 hover:text-slate-900 border-transparent'">24 Jam</button>
             <button @click="setSlaPeriod('7d')" class="px-3.5 py-1 rounded-md text-xs font-semibold transition border" :class="slaPeriod === '7d' ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] border-slate-200' : 'text-slate-500 hover:text-slate-900 border-transparent'">7 Hari</button>
@@ -191,7 +179,6 @@
         </div>
       </div>
 
-      <!-- 5 Mini KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
         <div class="bg-slate-50 border border-slate-100 rounded-xl p-4">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -200,7 +187,6 @@
           <h4 class="text-2xl font-black text-slate-900 font-mono tracking-tight leading-none">{{ formatPreciseDuration(slaAnalytics.summary.total_uptime_sec) }}</h4>
           <p class="text-[11px] text-slate-500 mt-2">Waktu sistem beroperasi normal</p>
         </div>
-        <!-- TOTAL DOWNTIME / GANGGUAN (DINAMIS) -->
         <div class="bg-slate-50 border border-slate-100 rounded-xl p-4 transition-colors">
           <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
             <i class="ph-bold ph-arrow-circle-down" :class="slaSeverity === 'CRITICAL' || slaSeverity === 'WARNING' ? 'text-amber-500' : 'text-rose-500'"></i>
@@ -241,7 +227,6 @@
         </div>
       </div>
 
-      <!-- 2 Grafik Berdampingan -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
           <div class="flex justify-between items-center mb-1">
@@ -262,7 +247,6 @@
       </div>
     </div>
 
-    <!-- Table Area: Log Alert & Incident Terbaru -->
     <div class="bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
       <div class="flex justify-between items-center p-6 pb-4">
         <div>
@@ -275,7 +259,7 @@
           Lihat Semua Insiden <i class="ph-bold ph-arrow-right"></i>
         </router-link>
       </div>
-      
+
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -330,7 +314,6 @@
       </div>
     </div>
 
-    <!-- TOAST NOTIFICATION -->
     <ToastNotification
       :show="toast.show"
       :type="toast.type"
@@ -338,7 +321,7 @@
       :message="toast.message"
       @close="toast.show = false"
     />
-    
+
   </main>
 </template>
 
@@ -369,7 +352,6 @@ const showToast = (type, title, message) => {
   toastTimer = setTimeout(() => { toast.value.show = false; }, 5000);
 };
 
-// STATE ANALITIK SLA (UPTIME, DOWNTIME, MTTR, MTBF, AVAILABILITY)
 const slaPeriod = ref('24h');
 const slaSeverity = ref('ALL');
 const slaAnalytics = ref({
@@ -799,7 +781,6 @@ const fetchDashboardData = async (isBackground = false) => {
   } finally {
     isLoading.value = false;
 
-    // Pastikan animasi putar tombol refresh terlihat halus minimal 1 detik seperti di ProxmoxMonitor.vue
     const timeElapsed = Date.now() - startTime;
     const minimumSpinTime = 1000;
     if (timeElapsed < minimumSpinTime) {

@@ -2,9 +2,6 @@ import db from '../config/database.js';
 import axios from 'axios';
 import https from 'https';
 
-// ==========================================
-// HELPER: LOGGING, FORMAT BYTES, & UPTIME
-// ==========================================
 export const addSystemLog = async (level, source, message) => {
   try {
     await db.query('INSERT INTO system_logs (level, source, message) VALUES (?, ?, ?)', [level, source, message]);
@@ -29,13 +26,10 @@ const formatUptime = (seconds) => {
   return `${d}h ${h}j ${m}m`;
 };
 
-// ==========================================
-// HELPER: BUAT INSTANCE AXIOS UNTUK PROXMOX
-// ==========================================
 const createProxmoxApi = (hostUrl, tokenId, tokenSecret) => {
   return axios.create({
     baseURL: hostUrl,
-    timeout: 10000, // Timeout 10 detik
+    timeout: 10000,
     headers: {
       'Authorization': `PVEAPIToken=${tokenId}=${tokenSecret}`
     },
@@ -43,9 +37,6 @@ const createProxmoxApi = (hostUrl, tokenId, tokenSecret) => {
   });
 };
 
-// ==========================================
-// 1. Ambil Semua Node Proxmox
-// ==========================================
 export const getProxmoxNodes = async (req, res) => {
   try {
     const [rows] = await db.query('SELECT id, name, host_url as hostUrl, token_id as tokenId, status, latency, pve_version as pveVersion FROM proxmox_nodes');
@@ -55,9 +46,6 @@ export const getProxmoxNodes = async (req, res) => {
   }
 };
 
-// ==========================================
-// 2. Tambah Node Proxmox
-// ==========================================
 export const createProxmoxNode = async (req, res) => {
   const { name, hostUrl, tokenId, tokenSecret } = req.body;
   try {
@@ -72,9 +60,6 @@ export const createProxmoxNode = async (req, res) => {
   }
 };
 
-// ==========================================
-// 3. Update Node Proxmox
-// ==========================================
 export const updateProxmoxNode = async (req, res) => {
   const { id } = req.params;
   const { name, hostUrl, tokenId, tokenSecret } = req.body;
@@ -97,9 +82,6 @@ export const updateProxmoxNode = async (req, res) => {
   }
 };
 
-// ==========================================
-// 4. Hapus Node Proxmox
-// ==========================================
 export const deleteProxmoxNode = async (req, res) => {
   const { id } = req.params;
   try {
@@ -111,9 +93,6 @@ export const deleteProxmoxNode = async (req, res) => {
   }
 };
 
-// ==========================================
-// 5. TEST KONEKSI KE API PROXMOX ASLI
-// ==========================================
 export const testProxmoxConnection = async (req, res) => {
   const { id } = req.params;
   try {
@@ -130,21 +109,18 @@ export const testProxmoxConnection = async (req, res) => {
 
     await db.query('UPDATE proxmox_nodes SET status="TERHUBUNG", latency=?, pve_version=? WHERE id=?', [`${latencyMs} ms`, version, id]);
     await addSystemLog('INFO', 'PROXMOX API', `Uji Koneksi ${node.name} Sukses (v${version})`);
-    
+
     res.status(200).json({ success: true, message: 'Koneksi berhasil.', latency: `${latencyMs} ms`, pveVersion: version });
 
   } catch (error) {
     const nodeName = error.config ? error.config.baseURL : `Node ID ${id}`;
     await db.query('UPDATE proxmox_nodes SET status="GAGAL", latency="-" WHERE id=?', [id]);
     await addSystemLog('ERROR', 'PROXMOX API', `Uji koneksi gagal ke ${nodeName}. Err: ${error.message}`);
-    
+
     res.status(400).json({ success: false, message: 'Token ditolak atau Server Host tidak merespon.' });
   }
 };
 
-// ==========================================
-// 6. TARIK DATA RESOURCES (VM, LXC, STORAGE) ASLI
-// ==========================================
 export const getProxmoxResources = async (req, res) => {
   const { id } = req.params;
   try {
@@ -157,11 +133,10 @@ export const getProxmoxResources = async (req, res) => {
     const response = await api.get('/api2/json/cluster/resources');
     const resources = response.data.data;
 
-    // Tambahkan properti "node: vm.node" agar ketahuan VM ini ada di server fisik mana
     const vms = resources.filter(r => r.type === 'qemu').map(vm => ({
       vmid: vm.vmid,
       name: vm.name,
-      node: vm.node, // <--- IDENTIFIKATOR NODE
+      node: vm.node,
       status: vm.status,
       cpu_usage: vm.cpu ? (vm.cpu * 100).toFixed(1) + ' %' : '0.0 %',
       cpu_cores: vm.maxcpu || 0,
@@ -178,7 +153,7 @@ export const getProxmoxResources = async (req, res) => {
     const lxcs = resources.filter(r => r.type === 'lxc').map(lxc => ({
       vmid: lxc.vmid,
       name: lxc.name,
-      node: lxc.node, // <--- IDENTIFIKATOR NODE
+      node: lxc.node,
       status: lxc.status,
       cpu_usage: lxc.cpu ? (lxc.cpu * 100).toFixed(1) + ' %' : '0.0 %',
       cpu_cores: lxc.maxcpu || 0,
@@ -194,7 +169,7 @@ export const getProxmoxResources = async (req, res) => {
 
     const storages = resources.filter(r => r.type === 'storage').map(st => ({
       storage: st.storage,
-      node: st.node, // <--- IDENTIFIKATOR NODE
+      node: st.node,
       type: st.plugintype,
       status: st.status || (st.maxdisk && st.maxdisk > 0 ? 'available' : 'offline'),
       used: formatBytes(st.disk),
@@ -209,9 +184,6 @@ export const getProxmoxResources = async (req, res) => {
   }
 };
 
-// ==========================================
-// 7. TARIK STATISTIK MENDALAM MULTI-NODE (CLUSTER)
-// ==========================================
 export const getProxmoxNodeStatus = async (req, res) => {
   const { id } = req.params;
   try {
@@ -221,17 +193,15 @@ export const getProxmoxNodeStatus = async (req, res) => {
     const node = rows[0];
     const api = createProxmoxApi(node.host_url, node.token_id, node.token_secret);
 
-    // Dapatkan list SEMUA node fisik di cluster
     const nodesRes = await api.get('/api2/json/nodes');
     if (!nodesRes.data.data || nodesRes.data.data.length === 0) {
        return res.status(404).json({ success: false, message: 'Node tidak ditemukan.' });
     }
-    
+
     const physicalNodes = nodesRes.data.data;
     const results = [];
 
     for (const pNode of physicalNodes) {
-      // Jika node fisik sudah ditandai offline oleh cluster, jangan panggil /status (agar tidak timeout 10 detik)
       if (pNode.status && String(pNode.status).toLowerCase() === 'offline') {
         results.push({
           node_name: pNode.node,
@@ -259,7 +229,7 @@ export const getProxmoxNodeStatus = async (req, res) => {
         try {
           const rrdRes = await api.get(`/api2/json/nodes/${pNode.node}/rrddata?timeframe=hour`);
           const rrdArray = rrdRes.data.data;
-          
+
           if (rrdArray && rrdArray.length > 0) {
             for (let i = rrdArray.length - 1; i >= 0; i--) {
               if (rrdArray[i].netin !== undefined || rrdArray[i].netout !== undefined) {

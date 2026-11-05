@@ -1,7 +1,6 @@
 <template>
   <aside class="w-64 bg-white h-screen fixed left-0 top-0 border-r border-slate-200/80 flex flex-col z-20 font-sans shadow-[1px_0_2px_rgba(0,0,0,0.02)]">
-    
-    <!-- Logo -->
+
     <div class="p-5 flex flex-col items-start border-b border-slate-100 mb-2">
         <img 
             src="https://cdn.sainzlab.my.id/sainzlab-storage/diskominfosubang.png" 
@@ -13,9 +12,7 @@
         </p>
     </div>
 
-    <!-- Navigation -->
     <div class="flex-1 overflow-y-auto py-3 flex flex-col gap-8 no-scrollbar">
-      <!-- Menu Utama -->
       <nav class="px-4">
         <p class="text-[11px] text-slate-400 mb-3 font-semibold tracking-wider uppercase">Menu Utama</p>
         <ul class="space-y-1">
@@ -29,7 +26,7 @@
               <div class="flex items-center gap-3"><i class="ph ph-squares-four text-lg"></i> Dashboard</div>
             </router-link>
           </li>
-          
+
           <li>
             <router-link
               to="/kelola-pengguna"
@@ -40,7 +37,7 @@
               <div class="flex items-center gap-3"><i class="ph ph-users text-lg"></i> Kelola Pengguna</div>
             </router-link>
           </li>
-          
+
           <li>
             <router-link
               to="/target-monitoring"
@@ -50,14 +47,13 @@
             >
               <div class="flex items-center gap-3"><i class="ph ph-graph text-lg"></i> Monitoring</div>
               <div class="flex items-center gap-2">
-                <!-- Badge Pastel jika ada downCount -->
                 <span v-if="downCount > 0" class="text-[10px] px-1.5 py-0.5 rounded-md border bg-rose-50 text-rose-700 border-rose-200/60 font-bold font-mono animate-pulse">
                   {{ downCount }}
                 </span>
               </div>
             </router-link>
           </li>
-          
+
           <li>
             <router-link
               to="/rekap-gangguan"
@@ -119,7 +115,6 @@
       </nav>
     </div>
 
-    <!-- User Profile & Logout -->
     <div class="p-4 border-t border-slate-200/80 bg-slate-50/50">
       <div class="flex items-center gap-3 mb-4">
         <div class="w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm shadow-sm">
@@ -139,7 +134,6 @@
     </div>
   </aside>
 
-  <!-- Modal Konfirmasi Logout -->
   <Teleport to="body">
     <div v-if="showLogoutModal" 
          class="fixed inset-0 z-[1050] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans"
@@ -191,7 +185,6 @@ import { useRoute, useRouter } from 'vue-router';
 const route = useRoute();
 const router = useRouter();
 
-// State Sidebar
 const showLogoutModal = ref(false);
 const isLoggingOut = ref(false);
 const targetCount = ref(0);
@@ -204,10 +197,8 @@ const userProfile = ref({
 });
 let pollTimer = null;
 
-// Fungsi Mengambil Data Sidebar
 const fetchSidebarData = async () => {
   try {
-    // Ambil jumlah target dan deteksi target yang DOWN
     const resTargets = await fetch('/api/targets');
     if (resTargets.ok) {
       const dataTargets = await resTargets.json();

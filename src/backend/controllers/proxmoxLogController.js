@@ -1,14 +1,11 @@
 import axios from 'axios';
 import https from 'https';
-import db from '../config/database.js'; // Pastikan akhiran .js disertakan
+import db from '../config/database.js';
 
-// Helper: Membuat koneksi Axios ke API Proxmox
 const getProxmoxClient = async () => {
     try {
-        // PERBAIKAN: Sesuaikan nama tabel menjadi 'proxmox_nodes' 
-        // dan hanya ambil node yang statusnya 'TERHUBUNG'
         const [rows] = await db.query("SELECT host_url, token_id, token_secret FROM proxmox_nodes WHERE status = 'TERHUBUNG' LIMIT 1");
-        
+
         if (rows.length === 0) {
             throw new Error('Tidak ada server Proxmox dengan status TERHUBUNG di database.');
         }
@@ -29,13 +26,12 @@ const getProxmoxClient = async () => {
     }
 };
 
-// 1. Mengambil Daftar Tasks Log
 export const getTasksLog = async (req, res) => {
     try {
         const client = await getProxmoxClient();
-        
+
         const response = await client.get('/api2/json/cluster/tasks'); 
-        
+
         res.json({ 
             success: true, 
             data: response.data.data 
@@ -50,13 +46,11 @@ export const getTasksLog = async (req, res) => {
     }
 };
 
-// 2. Mengambil Daftar Cluster Log (Pesan Syslog/Daemon)
 export const getClusterLog = async (req, res) => {
     try {
         const client = await getProxmoxClient();
-        // Tarik 500 baris log cluster terakhir
         const response = await client.get('/api2/json/cluster/log?max=500'); 
-        
+
         res.json({ 
             success: true, 
             data: response.data.data 
@@ -71,11 +65,10 @@ export const getClusterLog = async (req, res) => {
     }
 };
 
-// 3. Mengambil Detail Teks Terminal (Lazy Loading)
 export const getTaskDetailLog = async (req, res) => {
     try {
         const { node, upid } = req.query;
-        
+
         if (!node || !upid) {
             return res.status(400).json({ 
                 success: false, 
@@ -84,13 +77,12 @@ export const getTaskDetailLog = async (req, res) => {
         }
 
         const client = await getProxmoxClient();
-        
-        // Panggil endpoint pembacaan log dari node spesifik
+
         const response = await client.get(`/api2/json/nodes/${node}/tasks/${upid}/log`);
-        
+
         res.json({ 
             success: true, 
-            data: response.data.data // Format asli PVE: [{n: 1, t: "baris text..."}, ...]
+            data: response.data.data
         });
     } catch (error) {
         console.error('Error getTaskDetailLog:', error.message);

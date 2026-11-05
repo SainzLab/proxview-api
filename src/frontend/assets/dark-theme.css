@@ -1,13 +1,7 @@
-/* ==========================================================================
-   PROXVIEW — GLOBAL DARK MODE THEME
-   Aktif ketika elemen <html> memiliki class "dark" (html.dark)
-   ========================================================================== */
-
 html.dark {
   color-scheme: dark;
 }
 
-/* 1. Latar Belakang Halaman Utama */
 html.dark body,
 html.dark .bg-\[\#f8f9fa\] {
   background-color: #0b1120 !important;
@@ -18,24 +12,20 @@ html.dark .bg-\[\#fcfcfc\] {
   background-color: #0f172a !important;
 }
 
-/* 2. Kartu, Panel, Sidebar, Navbar, Modal & Dropdown (bg-white) */
 html.dark .bg-white {
   background-color: #1e293b !important;
 }
 
-/* Kartu bersarang (nested card) di dalam kartu utama agar memiliki kontras kedalaman */
 html.dark .bg-white .bg-white:not(button):not(input):not(select):not(textarea) {
   background-color: #162032 !important;
 }
 
-/* 3. Latar Belakang Sekunder (bg-slate-50, bg-slate-100, bg-slate-200) */
 html.dark .bg-slate-50,
 html.dark .bg-slate-50\/50,
 html.dark .bg-slate-50\/80 {
   background-color: #0f172a !important;
 }
 
-/* Tombol tab aktif di dalam container segmented (bg-slate-50 > button.bg-white) */
 html.dark .bg-slate-50 button.bg-white,
 html.dark .bg-slate-50\/80 button.bg-white {
   background-color: #1e293b !important;
@@ -51,7 +41,6 @@ html.dark .bg-slate-200 {
   background-color: #475569 !important;
 }
 
-/* 4. Input, Select, & Textarea */
 html.dark input.bg-white,
 html.dark select.bg-white,
 html.dark textarea.bg-white,
@@ -73,7 +62,6 @@ html.dark textarea:focus {
   border-color: #10b981 !important;
 }
 
-/* 5. Tombol Utama & Navigasi Aktif (bg-slate-900) */
 html.dark .bg-slate-900:not(.terminal-panel) {
   background-color: #10b981 !important;
   color: #052e16 !important;
@@ -84,7 +72,6 @@ html.dark .bg-slate-900:not(.terminal-panel).text-white {
   font-weight: 700 !important;
 }
 
-/* Panel Terminal / Console tetap gelap pekat di mode gelap */
 html.dark .terminal-panel {
   background-color: #0f172a !important;
   border: 1px solid #334155 !important;
@@ -94,12 +81,10 @@ html.dark .hover\:bg-slate-800:hover {
   background-color: #34d399 !important;
 }
 
-/* Backdrop Modal tetap gelap transparan */
 html.dark .bg-slate-900\/40 {
   background-color: rgba(2, 6, 23, 0.72) !important;
 }
 
-/* 6. Tipografi (text-slate-*) */
 html.dark .text-slate-900 {
   color: #f8fafc !important;
 }
@@ -132,7 +117,6 @@ html.dark .text-slate-200\/60 {
   color: rgba(51, 65, 85, 0.35) !important;
 }
 
-/* 7. Border, Garis Pemisah & Ring (border-slate-*, divide-slate-*) */
 html.dark .border-slate-100,
 html.dark .border-slate-200,
 html.dark .border-slate-200\/60,
@@ -157,7 +141,6 @@ html.dark .ring-slate-200 {
   --tw-ring-color: #475569 !important;
 }
 
-/* 8. Efek Hover pada Tabel, Tombol & Navigasi */
 html.dark .hover\:bg-slate-50:hover,
 html.dark .hover\:bg-slate-50\/50:hover,
 html.dark .hover\:bg-slate-100:hover,
@@ -177,9 +160,6 @@ html.dark .hover\:border-slate-300:hover {
   border-color: #475569 !important;
 }
 
-/* 9. Badge & Indikator Warna Pastel (Emerald, Rose, Amber, Orange, Blue, Cyan, Purple, Indigo) */
-
-/* Emerald (UP / Normal / Sukses) */
 html.dark .bg-emerald-50 {
   background-color: rgba(16, 185, 129, 0.14) !important;
 }
@@ -200,7 +180,6 @@ html.dark .hover\:bg-emerald-100:hover {
   background-color: rgba(16, 185, 129, 0.25) !important;
 }
 
-/* Rose (DOWN / Error / Hapus) */
 html.dark .bg-rose-50,
 html.dark .bg-rose-50\/30,
 html.dark .bg-rose-50\/50 {
@@ -220,7 +199,6 @@ html.dark .text-rose-700 {
   color: #fb7185 !important;
 }
 
-/* Amber (WARNING / Token) */
 html.dark .bg-amber-50,
 html.dark .bg-amber-50\/30,
 html.dark .bg-amber-50\/50 {
@@ -240,7 +218,6 @@ html.dark .text-amber-700 {
   color: #fbbf24 !important;
 }
 
-/* Orange (CRITICAL) */
 html.dark .bg-orange-50,
 html.dark .bg-orange-50\/30 {
   background-color: rgba(249, 115, 22, 0.14) !important;
@@ -255,7 +232,6 @@ html.dark .text-orange-700 {
   color: #fb923c !important;
 }
 
-/* Blue (Info / RECOVERED / VM) */
 html.dark .bg-blue-50,
 html.dark .bg-blue-100\/50 {
   background-color: rgba(59, 130, 246, 0.14) !important;
@@ -277,7 +253,6 @@ html.dark .text-blue-900 {
   color: #60a5fa !important;
 }
 
-/* Cyan (Investigasi / Penanganan / ICMP) */
 html.dark .bg-cyan-50 {
   background-color: rgba(6, 182, 212, 0.14) !important;
 }
@@ -291,7 +266,6 @@ html.dark .text-cyan-700 {
   color: #22d3ee !important;
 }
 
-/* Purple (LXC / Kepala Bidang) */
 html.dark .bg-purple-50 {
   background-color: rgba(168, 85, 247, 0.14) !important;
 }
@@ -305,7 +279,6 @@ html.dark .text-purple-700 {
   color: #c084fc !important;
 }
 
-/* Indigo (TCP) */
 html.dark .bg-indigo-50 {
   background-color: rgba(99, 102, 241, 0.14) !important;
 }
@@ -319,7 +292,6 @@ html.dark .text-indigo-700 {
   color: #818cf8 !important;
 }
 
-/* 10. Scrollbar & ApexCharts Tooltip Override untuk Mode Gelap */
 html.dark .apexcharts-tooltip {
   background: #0f172a !important;
   border-color: #334155 !important;

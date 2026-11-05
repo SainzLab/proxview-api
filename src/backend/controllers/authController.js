@@ -5,9 +5,6 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
-// ==========================================
-// HELPER: Fungsi untuk mencatat Log ke database
-// ==========================================
 const addSystemLog = async (level, source, message) => {
     try {
         await db.query(
@@ -19,9 +16,7 @@ const addSystemLog = async (level, source, message) => {
     }
 };
 
-// HELPER: Ekstrak IP dan User-Agent dari Request
 const getClientInfo = (req) => {
-    // Menangkap IP asli meskipun dibalik Proxy/Load Balancer
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown IP';
     const agent = req.headers['user-agent'] || 'Unknown Device';
     return `[IP: ${ip} | OS/Browser: ${agent}]`;
@@ -35,15 +30,11 @@ const isHttpsRequest = (req) => {
     );
 };
 
-// ==========================================
-// 1. LOGIN (WEB)
-// ==========================================
 export const login = async (req, res) => {
     const { username, password } = req.body;
     const clientInfo = getClientInfo(req);
 
     try {
-        // 1. Cari user di database
         const [rows] = await db.query('SELECT * FROM users WHERE username = ? LIMIT 1', [username]);
         if (rows.length === 0) {
             await addSystemLog('WARNING', 'AUTENTIFIKASI', `Percobaan login gagal: Username '${username}' tidak ditemukan. ${clientInfo}`);
@@ -52,38 +43,32 @@ export const login = async (req, res) => {
 
         const user = rows[0];
 
-        // 2. Cek status aktif
         if (!user.is_active) {
             await addSystemLog('WARNING', 'AUTENTIFIKASI', `Percobaan login ditolak: Akun '${username}' sedang dinonaktifkan. ${clientInfo}`);
             return res.status(403).json({ success: false, message: 'Akun Anda dinonaktifkan.' });
         }
 
-        // 3. Validasi Role (Hanya Admin)
         if (user.role !== 'Admin') {
             await addSystemLog('WARNING', 'AUTENTIFIKASI', `Percobaan login ditolak: Pengguna '${username}' bukan Admin. ${clientInfo}`);
             return res.status(403).json({ success: false, message: 'Akses ditolak! Hanya role Admin yang diizinkan masuk.' });
         }
 
-        // 4. Validasi Password (Bcrypt)
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             await addSystemLog('WARNING', 'AUTENTIFIKASI', `Percobaan login gagal: Password salah untuk pengguna '${username}'. ${clientInfo}`);
             return res.status(401).json({ success: false, message: 'Password salah.' });
         }
 
-        // 5. Generate JWT Token
         const payload = { id: user.id, username: user.username, role: user.role };
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '12h' });
 
-        // 6. Set token ke HTTP-Only Cookie (aman untuk HTTP staging maupun HTTPS production)
         res.cookie('proxview_token', token, {
             httpOnly: true,
             secure: isHttpsRequest(req),
             sameSite: 'lax',
-            maxAge: 12 * 60 * 60 * 1000 // 12 Jam
+            maxAge: 12 * 60 * 60 * 1000
         });
 
-        // CATAT LOG LOGIN BERHASIL
         await addSystemLog('INFO', 'AUTENTIFIKASI', `Login berhasil: Pengguna '${username}' masuk ke sistem. ${clientInfo}`);
 
         return res.status(200).json({
@@ -99,9 +84,6 @@ export const login = async (req, res) => {
     }
 };
 
-// ==========================================
-// 2. LOGOUT (WEB)
-// ==========================================
 export const logout = async (req, res) => {
     const clientInfo = getClientInfo(req);
     try {
@@ -124,13 +106,9 @@ export const logout = async (req, res) => {
     }
 };
 
-// ==========================================
-// 3. LOGIN KHUSUS MOBILE APP (3-Factor)
-// ==========================================
 export const mobileLogin = async (req, res) => {
-    // Menangkap 4 parameter dari body request Flutter (fcm_token ditambahkan)
     const { username, password, token, fcm_token } = req.body;
-    const clientInfo = getClientInfo(req); // Ambil info IP dan Device Flutter
+    const clientInfo = getClientInfo(req);
 
     if (!username || !password || !token) {
         await addSystemLog('WARNING', 'MOBILE AUTH', `Percobaan login ditolak: Parameter tidak lengkap. ${clientInfo}`);
@@ -141,7 +119,6 @@ export const mobileLogin = async (req, res) => {
     }
 
     try {
-        // 1. Cari User berdasarkan Username dan Token
         const [users] = await db.query(
             'SELECT * FROM users WHERE username = ? AND api_token = ?',
             [username, token]
@@ -157,7 +134,6 @@ export const mobileLogin = async (req, res) => {
 
         const user = users[0];
 
-        // 2. Cek status aktif (Toggled Off)
         if (user.is_active === 0) {
             await addSystemLog('WARNING', 'MOBILE_AUTH', `Percobaan login ditolak: Akun '${username}' sedang dinonaktifkan. ${clientInfo}`);
             return res.status(403).json({
@@ -166,7 +142,6 @@ export const mobileLogin = async (req, res) => {
             });
         }
 
-        // 3. Verifikasi Password menggunakan Bcrypt
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
             await addSystemLog('WARNING', 'MOBILE_AUTH', `Percobaan login gagal: Password salah untuk pengguna '${username}'. ${clientInfo}`);
@@ -176,9 +151,7 @@ export const mobileLogin = async (req, res) => {
             });
         }
 
-        // 4. Cek masa berlaku token (Kadaluarsa)
         if (user.token_expires_at) {
-            // Token berlaku sampai akhir hari kedaluwarsa menurut WIB
             const expiresAtMs = getTokenExpiryMs(user.token_expires_at);
 
             if (expiresAtMs !== null && Date.now() >= expiresAtMs) {
@@ -190,15 +163,12 @@ export const mobileLogin = async (req, res) => {
             }
         }
 
-        // 5. UPDATE FCM TOKEN (Fitur Push Notification CallKit)
         if (fcm_token) {
             await db.query('UPDATE users SET fcm_token = ? WHERE id = ?', [fcm_token, user.id]);
         }
 
-        // CATAT LOG LOGIN BERHASIL
         await addSystemLog('INFO', 'MOBILE_AUTH', `Login Mobile berhasil: Pengguna '${username}' masuk ke sistem. ${clientInfo}`);
 
-        // 6. Kembalikan Response Sukses ke Flutter
         res.json({
             success: true,
             message: 'Otentikasi berhasil. Perangkat terhubung.',
@@ -219,8 +189,8 @@ export const mobileLogin = async (req, res) => {
 };
 
 export const simulateFCM = async (req, res) => {
-    const { action_type } = req.body; // 'Call' atau 'Pesan'
-    
+    const { action_type } = req.body;
+
     try {
         const [techs] = await db.query("SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL AND is_active = 1");
         const cleanTokens = [...new Set(techs.map(t => t.fcm_token?.trim()).filter(Boolean))];

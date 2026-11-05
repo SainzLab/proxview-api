@@ -1,9 +1,7 @@
 import db from '../config/database.js';
 
-// GET /api/alerts/active & GET /api/mobile/v1/alerts/active
 export const getActiveAlerts = async (req, res) => {
     try {
-        // Hanya ambil notifikasi yang belum diselesaikan (is_resolved = 0) beserta informasi teknisi yang menangani
         const [alerts] = await db.query(`
             SELECT 
                 a.*,
@@ -16,7 +14,7 @@ export const getActiveAlerts = async (req, res) => {
             GROUP BY a.id
             ORDER BY a.created_at DESC
         `);
-        
+
         res.json({
             success: true,
             total_active: alerts.length,
@@ -28,8 +26,6 @@ export const getActiveAlerts = async (req, res) => {
     }
 };
 
-// GET /api/alerts/history & GET /api/mobile/v1/alerts/history
-// Riwayat gangguan yang sudah selesai (is_resolved = 1)
 export const getAlertHistory = async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);

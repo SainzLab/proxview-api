@@ -14,7 +14,6 @@
         role="alert"
         aria-live="assertive"
       >
-        <!-- Icon Container -->
         <div 
           class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center border"
           :class="iconBgClass"
@@ -22,7 +21,6 @@
           <i :class="[iconClass, 'text-xl ph-bold']"></i>
         </div>
 
-        <!-- Content Container -->
         <div class="flex-1 min-w-0">
           <div class="flex justify-between items-start">
             <h3 class="text-slate-900 font-bold text-sm leading-none mb-1.5">{{ title }}</h3>
@@ -54,7 +52,7 @@ const props = defineProps({
   },
   type: {
     type: String,
-    default: 'success' // 'success' | 'error' | 'warning' | 'info' | 'logout'
+    default: 'success'
   },
   title: {
     type: String,

@@ -1,9 +1,6 @@
 import db from '../config/database.js';
 import { resetTargetAlertState } from '../services/monitoringDaemon.js';
 
-// ==========================================
-// FUNGSI HELPER UNTUK LOGGING SISTEM
-// ==========================================
 const addSystemLog = async (level, source, message) => {
     try {
         await db.query('INSERT INTO system_logs (level, source, message) VALUES (?, ?, ?)', [level, source, message]);
@@ -12,14 +9,10 @@ const addSystemLog = async (level, source, message) => {
     }
 };
 
-// ==========================================
-// 1. THRESHOLD NETWORK (ICMP/TCP)
-// ==========================================
-
 export const getNetworkThresholds = async (req, res) => {
     try {
         const [rows] = await db.query('SELECT * FROM monitoring_targets WHERE is_alert_enabled = 1 ORDER BY id ASC');
-        
+
         const formattedData = rows.map(row => ({
             id: row.id,
             name: row.name,
@@ -61,15 +54,12 @@ export const getNetworkCatalog = async (req, res) => {
 export const saveNetworkThresholds = async (req, res) => {
     const { targets } = req.body;
     try {
-        // Ambil data aktif sebelum direset untuk deteksi jejak (Audit Trail)
         const [oldActive] = await db.query('SELECT id, name FROM monitoring_targets WHERE is_alert_enabled = 1');
         const oldIds = oldActive.map(t => t.id);
         const newIds = targets ? targets.map(t => t.id) : [];
 
-        // a. Reset semua target menjadi tidak aktif (0) terlebih dahulu
         await db.query('UPDATE monitoring_targets SET is_alert_enabled = 0');
 
-        // b. Jika ada data target yang dikirim, aktifkan (1), update nilainya, dan reset last_check = NULL agar Daemon langsung mengecek di detik berikutnya
         if (targets && targets.length > 0) {
             for (const target of targets) {
                 await db.query(`
@@ -92,7 +82,6 @@ export const saveNetworkThresholds = async (req, res) => {
                     target.id
                 ]);
 
-                // Perekaman Jejak: Tambah vs Edit
                 if (oldIds.includes(target.id)) {
                     await addSystemLog('INFO', 'THRESHOLD NETWORK', `Konfigurasi diperbarui: ${target.name}`);
                 } else {
@@ -101,7 +90,6 @@ export const saveNetworkThresholds = async (req, res) => {
             }
         }
 
-        // c. Perekaman Jejak: Hapus (Dinonaktifkan dari Notifikasi) & tutup tiket aktif yang menggantung
         const removedTargets = oldActive.filter(t => !newIds.includes(t.id));
         for (const target of removedTargets) {
             await addSystemLog('WARNING', 'THRESHOLD NETWORK', `Target dihapus dari Notifikasi: ${target.name}`);
@@ -111,7 +99,6 @@ export const saveNetworkThresholds = async (req, res) => {
             );
         }
 
-        // Reset tracker in-memory agar perubahan konfigurasi dievaluasi segar
         resetTargetAlertState('NETWORK');
 
         res.json({ success: true, message: 'Konfigurasi Network berhasil disimpan' });
@@ -120,10 +107,6 @@ export const saveNetworkThresholds = async (req, res) => {
         res.status(500).json({ success: false, message: 'Gagal menyimpan konfigurasi' });
     }
 };
-
-// ==========================================
-// 2. THRESHOLD PROXMOX (NODE/VM/LXC)
-// ==========================================
 
 export const getProxmoxCatalog = async (req, res) => {
     try {
@@ -164,10 +147,8 @@ export const getProxmoxThresholds = async (req, res) => {
 export const saveProxmoxThresholds = async (req, res) => {
     const { targets } = req.body;
     try {
-        // 1. Reset semua target menjadi tidak aktif (0) sementara
         await db.query('UPDATE proxmox_targets SET is_alert_enabled = 0');
 
-        // 2. Masukkan (INSERT) atau Perbarui (UPDATE) target yang masih aktif di UI
         if (targets && targets.length > 0) {
             for (const target of targets) {
                 const vmidVal = target.vmid !== undefined && target.vmid !== '' ? target.vmid : null;
@@ -203,7 +184,6 @@ export const saveProxmoxThresholds = async (req, res) => {
                         ioWarn, ioCrit, checkInt, warnMax, warnType,
                         critMax, critType, downMax, downType, existing[0].id
                     ]);
-                    // Perekaman Jejak: Edit
                     await addSystemLog('INFO', 'THRESHOLD PROXMOX', `Konfigurasi diperbarui: ${target.name} (${target.type})`);
                 } else {
                     await db.query(`
@@ -218,13 +198,11 @@ export const saveProxmoxThresholds = async (req, res) => {
                         checkInt, warnMax, warnType,
                         critMax, critType, downMax, downType
                     ]);
-                    // Perekaman Jejak: Tambah
                     await addSystemLog('INFO', 'THRESHOLD PROXMOX', `Target ditambahkan ke Notifikasi: ${target.name} (${target.type})`);
                 }
             }
         }
 
-        // 3. Perekaman Jejak: Deteksi target yang dihapus dari UI & tutup tiket aktif yang menggantung
         const [deletedTargets] = await db.query('SELECT id, name, type FROM proxmox_targets WHERE is_alert_enabled = 0');
         for (const del of deletedTargets) {
             await addSystemLog('WARNING', 'THRESHOLD PROXMOX', `Target dihapus dari Notifikasi: ${del.name} (${del.type})`);
@@ -234,10 +212,8 @@ export const saveProxmoxThresholds = async (req, res) => {
             );
         }
 
-        // 4. Hapus permanen data mesin yang sudah tidak terpakai/dihapus dari UI
         await db.query('DELETE FROM proxmox_targets WHERE is_alert_enabled = 0');
 
-        // Reset tracker in-memory Proxmox agar dievaluasi ulang seketika
         resetTargetAlertState('PROXMOX');
 
         res.json({ success: true, message: 'Konfigurasi Proxmox berhasil disimpan' });

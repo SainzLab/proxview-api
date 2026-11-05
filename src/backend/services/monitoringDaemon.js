@@ -3,18 +3,14 @@ import ping from 'ping';
 import net from 'net';
 import axios from 'axios';
 import https from 'https';
-// HAPUS import admin from 'firebase-admin' karena bentrok dengan ES Modules
 import { getWibYear, WIB_OFFSET_MS } from '../config/timezone.js';
 import { executeScheduledCleanupIfDue, ensureCleanupSettingsTable } from '../controllers/cleanupController.js';
-import { getMessaging } from 'firebase-admin/messaging'; // Gunakan import ini untuk FCM
+import { getMessaging } from 'firebase-admin/messaging';
 
-// Tracker berurutan untuk kegagalan ping/TCP (RTO Tolerance)
 const failureCounts = new Map();
 
-// Tracker in-memory khusus untuk Sistem Notifikasi & Tiket Otomatis
 const alertStateTracker = {};
 
-// Urutan tingkat keparahan untuk menentukan eskalasi vs penurunan status
 const SEVERITY_RANK = {
     RECOVERED: 0,
     WARNING: 1,
@@ -22,9 +18,6 @@ const SEVERITY_RANK = {
     DOWN: 3
 };
 
-// ==========================================
-// FUNGSI HELPER & LOG TERMINAL INTERVAL CEK
-// ==========================================
 const getWibTimeStr = () => {
     const wib = new Date(Date.now() + WIB_OFFSET_MS);
     const hh = String(wib.getUTCHours()).padStart(2, '0');
@@ -93,8 +86,6 @@ const checkTcp = (ip, port) => {
     });
 };
 
-// MESIN NOTIFIKASI & TIKET OTOMATIS (STATE ENGINE)
-// ==========================================
 const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', maxCount = 1, message = '') => {
     const stateKey = `${moduleType}_${target.id}`;
     if (!alertStateTracker[stateKey]) {
@@ -105,13 +96,12 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
     const thresholdCount = Math.max(1, Number(maxCount) || 1);
     const targetDisplayName = target.name || target.node || `ID-${target.id}`;
 
-    // Akumulasi hitungan berurutan
     state.failCount += 1;
     state.currentSeverity = severity;
 
     if (state.failCount >= thresholdCount) {
         let currentAlertId = null;
-        let isEscalatedOrUpdated = false; // FLAG BARU: Deteksi perubahan status untuk memicu FCM ulang
+        let isEscalatedOrUpdated = false;
 
         try {
             const [existing] = await db.query(
@@ -122,17 +112,16 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
             const logLevel = severity === 'WARNING' ? 'WARNING' : 'ERROR';
 
             if (existing.length === 0) {
-                // Buat tiket baru
                 const [result] = await db.query(
                     `INSERT INTO active_alerts (target_id, target_type, target_name, severity, original_severity, action_type, message) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                     [target.id, moduleType, targetDisplayName, severity, severity, safeAction, message]
                 );
                 currentAlertId = result.insertId;
-                
+
                 const ticketId = `#INC-${getWibYear()}-${String(currentAlertId).padStart(4, '0')}`;
                 const logMsg = `Tiket ${ticketId} otomatis dibuat: [${moduleType}] ${targetDisplayName} berstatus ${severity} (${message})`;
                 console.log(`[ALERT TRIGGERED] ${logMsg}`);
-                
+
                 await addDaemonLog(logLevel, logMsg);
             } else {
                 const currentAlert = existing[0];
@@ -143,13 +132,12 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
                 const highestOriginal = newRank > origRank ? severity : (currentAlert.original_severity || severity);
 
                 if (currentAlert.severity !== severity) {
-                    // TERJADI PERUBAHAN STATUS (ESKALASI/PENURUNAN)
                     await db.query(
                         `UPDATE active_alerts SET target_name = ?, severity = ?, original_severity = ?, action_type = ?, message = ? WHERE id = ?`,
                         [targetDisplayName, severity, highestOriginal, safeAction, message, currentAlertId]
                     );
-                    
-                    isEscalatedOrUpdated = true; // Set flag menjadi TRUE agar FCM ditembakkan ulang
+
+                    isEscalatedOrUpdated = true;
 
                     const ticketId = `#INC-${getWibYear()}-${String(currentAlertId).padStart(4, '0')}`;
                     let logMsg;
@@ -172,16 +160,13 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
             state.isAlerting = true;
         } catch (error) {
             console.error('[ALERT ERROR] Gagal menyimpan alert ke DB:', error);
-            return; // Hentikan eksekusi FCM jika insert DB gagal
+            return;
         }
 
-        // HANYA TEMBAKKAN FCM SAAT PERTAMA KALI MELEWATI THRESHOLD ATAU SAAT STATUS MEMBURUK/ESKALASI
         if (state.failCount === thresholdCount || isEscalatedOrUpdated) {
             try {
-                // Ambil token teknisi yang aktif (kecuali Kepala Bidang)
                 const [techs] = await db.query("SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL AND role != 'Kepala Bidang' AND is_active = 1");
-                
-                // Sanitasi: Buang token null/kosong dan hapus duplikasi token perangkat yang sama
+
                 const rawTokens = techs.map(t => t.fcm_token?.trim());
                 const cleanTokens = [...new Set(rawTokens.filter(Boolean))];
 
@@ -197,10 +182,10 @@ const triggerAlert = async (target, moduleType, severity, actionType = 'Pesan', 
                             click_action: "FLUTTER_NOTIFICATION_CLICK"
                         },
                         android: { 
-                            priority: 'high' // Wajib 'high' untuk menembus Doze Mode Android
+                            priority: 'high'
                         }
                     };
-                    
+
                     getMessaging().sendEachForMulticast(fcmPayload)
                         .then(res => console.log(`[FCM] Push terkirim ke ${res.successCount} perangkat (Alert #${currentAlertId} | Status: ${severity}).`))
                         .catch(err => console.error(`[FCM ERROR] Gagal mengirim pesan multicast:`, err));
@@ -248,13 +233,10 @@ const resolveAlert = async (target, moduleType) => {
     alertStateTracker[stateKey] = { failCount: 0, isAlerting: false, currentSeverity: null };
 };
 
-// ==========================================
-// PENGAMBILAN METRIK PROXMOX LANGSUNG KE PVE API
-// ==========================================
 const pveHttpsAgent = new https.Agent({ rejectUnauthorized: false });
 const pxCache = {
-    clusterResources: new Map(), // key: pve.id -> { data, expires }
-    nodeStatus: new Map()        // key: `${pve.id}_${nodeName}` -> { data, expires }
+    clusterResources: new Map(),
+    nodeStatus: new Map()
 };
 const CACHE_TTL_MS = 3000;
 
@@ -398,9 +380,6 @@ const fetchLiveProxmoxMetrics = async (pt) => {
     return { isUp: false, reason: `Target ${pt.type} ${pt.name} tidak ditemukan atau tidak merespon` };
 };
 
-// ==========================================
-// CRONJOB PEMBERSIHAN RIWAYAT GRAFIK
-// ==========================================
 const HISTORY_CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 const MAX_HISTORY_ROWS_PER_TARGET = 20;
 
@@ -438,12 +417,8 @@ export const cleanupTargetHistory = async () => {
     }
 };
 
-// Helper Pemecah Array menjadi Batch
 const chunkArray = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size));
 
-// ==========================================
-// FUNGSI UTAMA DAEMON
-// ==========================================
 let isDaemonRunning = false;
 
 export const startMonitoringDaemon = async () => {
@@ -469,7 +444,6 @@ export const startMonitoringDaemon = async () => {
         isDaemonRunning = true;
 
         try {
-            // BERSIHKAN CACHE PROXMOX EXPIRED
             const nowMs = Date.now();
             for (const [key, val] of pxCache.nodeStatus.entries()) {
                 if (nowMs > val.expires) pxCache.nodeStatus.delete(key);
@@ -478,16 +452,13 @@ export const startMonitoringDaemon = async () => {
                 if (nowMs > val.expires) pxCache.clusterResources.delete(key);
             }
 
-            // =======================================
-            // BAGIAN 1: NETWORK (BATCHING)
-            // =======================================
             const [targets] = await db.query(
                 `SELECT *, TIMESTAMPDIFF(SECOND, IFNULL(last_check, '1970-01-01 00:00:00'), NOW()) AS elapsed_seconds 
                  FROM monitoring_targets 
                  WHERE is_active = 1`
             );
 
-            const networkBatches = chunkArray(targets, 20); // Eksekusi 20 target sekaligus
+            const networkBatches = chunkArray(targets, 20);
 
             for (const batch of networkBatches) {
                 await Promise.allSettled(batch.map(async (target) => {
@@ -591,16 +562,13 @@ export const startMonitoringDaemon = async () => {
                 }));
             }
 
-            // =======================================
-            // BAGIAN 2: PROXMOX THRESHOLDS (BATCHING)
-            // =======================================
             const [pxTargets] = await db.query(
                 `SELECT *, TIMESTAMPDIFF(SECOND, IFNULL(last_check, '1970-01-01 00:00:00'), NOW()) AS elapsed_seconds 
                  FROM proxmox_targets 
                  WHERE is_alert_enabled = 1`
             );
 
-            const pxBatches = chunkArray(pxTargets, 10); // Eksekusi 10 Proxmox target sekaligus
+            const pxBatches = chunkArray(pxTargets, 10);
 
             for (const batch of pxBatches) {
                 await Promise.allSettled(batch.map(async (pt) => {

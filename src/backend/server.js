@@ -8,20 +8,16 @@ import cors from 'cors';
 import { initializeApp } from 'firebase-admin/app';
 
 try {
-    // 1. Dapatkan path absolut ke file JSON
     const serviceAccountPath = fileURLToPath(new URL('./serviceAccountKey.json', import.meta.url));
     
-    // 2. Set environment variable secara terprogram (Cara paling standar & direkomendasikan Google)
     process.env.GOOGLE_APPLICATION_CREDENTIALS = serviceAccountPath;
     
-    // 3. Inisialisasi kosong, Firebase otomatis membaca kredensial dari variable di atas
     initializeApp();
     
     console.log('[INFO] Firebase Admin SDK berhasil diinisialisasi.');
 } catch (error) {
     console.error('[CRITICAL ERROR] Gagal menginisialisasi Firebase Admin. Pastikan file serviceAccountKey.json tersedia.', error.message);
 }
-// =============================================
 
 import { login, logout, mobileLogin, simulateFCM } from './controllers/authController.js';
 import { getUsers, createUser, updateUser, deleteUser, getToken, resetToken, toggleUserStatus } from './controllers/userController.js';
@@ -47,7 +43,6 @@ const PORT = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === 'production';
 app.use(express.static(path.join(__dirname, '../public/dist')));
 
-// Helper pembaca manifest hasil build Vite untuk mode Production / Staging
 const resolveViteManifestAssets = () => {
     try {
         const manifestPath = path.join(process.cwd(), 'public', 'dist', '.vite', 'manifest.json');
@@ -62,12 +57,12 @@ const resolveViteManifestAssets = () => {
     }
 };
 
-// Middleware CORS, Parsing & Cookie
+// Middleware CORS
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// Konfigurasi EJS
+// EJS
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -124,7 +119,7 @@ app.get('/api/logs/system', verifyWebAuth, getSystemLogs);
 app.get('/api/alerts/active', verifyWebAuth, getActiveAlerts);
 app.get('/api/alerts/history', verifyWebAuth, getAlertHistory);
 
-// Route Pengaturan Cronjob Pembersihan Otomatis (Log & Riwayat Gangguan) - Dikunci khusus Admin
+// Route Pengaturan Cronjob
 app.get('/api/settings/cleanup', verifyWebAuth, requireAdmin, getCleanupSettings);
 app.put('/api/settings/cleanup', verifyWebAuth, requireAdmin, saveCleanupSettings);
 app.post('/api/settings/cleanup/run', verifyWebAuth, requireAdmin, runManualCleanup);
@@ -137,7 +132,7 @@ app.get('/api/thresholds/proxmox/catalog', verifyWebAuth, getProxmoxCatalog);
 app.get('/api/thresholds/proxmox', verifyWebAuth, getProxmoxThresholds);
 app.put('/api/thresholds/proxmox', verifyWebAuth, requireAdmin, saveProxmoxThresholds);
 
-// Route Insiden & Analitik SLA (Mendukung Web Cookie maupun Bearer Token Mobile)
+// Route Insiden & Analitik SLA
 app.get('/api/incidents', attachMobileUserIfPresent, getIncidents);
 app.get('/api/incidents/stats', attachMobileUserIfPresent, getIncidentStats);
 app.get('/api/analytics', attachMobileUserIfPresent, getAnalytics);
@@ -149,13 +144,11 @@ app.post('/api/tools/traceroute', verifyWebAuth, runTraceroute);
 app.post('/api/tools/ping', verifyWebAuth, runPing);
 app.post('/api/tools/ipscan', verifyWebAuth, runIpScan);
 
-// Route Export PDF Laporan (Mendukung Web Cookie & Bearer Token)
+// Route Export PDF Laporan
 app.get('/api/export/pdf/incidents', attachMobileUserIfPresent, exportIncidentsPdf);
 app.get('/api/export/pdf/dashboard', attachMobileUserIfPresent, exportDashboardPdf);
 
-// ==========================================
 // ROUTE API MOBILE V1 (Wajib Bearer Token)
-// ==========================================
 app.post('/api/mobile/v1/auth/login', mobileLogin);
 app.get('/api/mobile/v1/auth/me', verifyApiToken, (req, res) => {
     res.json({ success: true, data: req.user });
@@ -186,14 +179,13 @@ app.get('/api/mobile/v1/export/pdf', verifyApiToken, exportPdf);
 app.get('/api/mobile/v1/export/pdf/incidents', verifyApiToken, exportIncidentsPdf);
 app.get('/api/mobile/v1/export/pdf/dashboard', verifyApiToken, exportDashboardPdf);
 
-// Route Network Tools khusus Mobile (JSON Response utuh via child_process.exec)
+// Route Network Tools Mobile (JSON Response utuh via child_process.exec)
 app.use('/api/mobile/tools', verifyApiToken, mobileToolsRoutes);
 app.use('/api/mobile/v1/tools', verifyApiToken, mobileToolsRoutes);
 
-// Sisipkan di antara endpoint yang sudah ada
+// FCM
 app.post('/api/auth/simulate-fcm', simulateFCM);
 
-// Route Utama SPA
 app.get(/^(?!\/api).*/, (req, res) => {
     const viteAssets = isProd ? resolveViteManifestAssets() : null;
     res.render('index', { isProd, viteAssets });

@@ -1,7 +1,6 @@
 <template>
   <div class="animate-fade-in space-y-4 relative font-sans">
-    
-    <!-- Header Khusus Proxmox Log -->
+
     <div class="flex justify-between items-end mb-4">
       <div>
         <h2 class="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-3">
@@ -9,9 +8,8 @@
         </h2>
         <p class="text-slate-500 text-sm font-medium">Riwayat tugas (Tasks) dan rekam jejak aksi (Cluster Log) Proxmox VE.</p>
       </div>
-      
+
       <div class="flex gap-3 items-center">
-        <!-- TOGGLE MODE BUTTON -->
         <div class="flex bg-slate-50 border border-slate-200/80 p-1 rounded-lg shadow-inner h-[42px] items-center shrink-0">
           <button @click="$emit('change-view', 'system')" class="px-3 rounded-md text-xs font-semibold transition-all duration-300 flex items-center gap-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 border border-transparent h-full whitespace-nowrap">
             <i class="ph-bold ph-terminal-window text-sm"></i> LOG SISTEM
@@ -21,7 +19,6 @@
           </button>
         </div>
 
-        <!-- SEARCH BAR -->
         <div class="relative flex items-center h-[42px]">
           <i class="ph ph-magnifying-glass absolute left-3 text-slate-400 pointer-events-none"></i>
           <input 
@@ -37,7 +34,6 @@
       </div>
     </div>
 
-    <!-- SUB-TABS (TASKS vs CLUSTER LOG) -->
     <div class="flex gap-6 border-b border-slate-200/80 px-2 mt-2">
       <button 
         @click="activeTab = 'tasks'" 
@@ -57,10 +53,8 @@
       </button>
     </div>
 
-    <!-- WRAPPER TABEL -->
     <div class="bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col mb-4">
-      
-      <!-- ================= TAB 1: TASKS LOG ================= -->
+
       <div v-if="activeTab === 'tasks'" class="overflow-x-auto animate-fade-in">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -116,7 +110,6 @@
         </table>
       </div>
 
-      <!-- ================= TAB 2: CLUSTER LOG ================= -->
       <div v-if="activeTab === 'cluster'" class="overflow-x-auto animate-fade-in">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -170,7 +163,6 @@
       </div>
     </div>
 
-    <!-- SENTINEL TRIGGER INFINITE / UNLIMITED SCROLL -->
     <div ref="loadMoreTrigger" class="h-10 w-full flex items-center justify-center text-[11px] font-medium text-slate-500 gap-2">
       <template v-if="hasMoreToRender">
         <i class="ph-bold ph-spinner animate-spin text-slate-400 text-base"></i>
@@ -181,11 +173,10 @@
       </template>
     </div>
 
-    <!-- MODAL LOG DETAIL (Task Viewer) -->
     <Teleport to="body">
       <div v-if="showDetailModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeDetailModal">
         <div class="bg-white border border-slate-200/80 rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden flex flex-col h-[80vh]">
-          
+
           <div class="flex justify-between items-center px-6 py-4 border-b border-slate-200/80 bg-slate-50/50">
             <h3 class="font-bold text-slate-900 flex items-center gap-2 text-sm">
               <i class="ph-bold ph-terminal text-emerald-500 text-lg"></i> 
@@ -193,7 +184,7 @@
             </h3>
             <button @click="closeDetailModal" class="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full w-8 h-8 flex items-center justify-center transition"><i class="ph-bold ph-x text-lg"></i></button>
           </div>
-          
+
           <div class="px-6 py-4 bg-white border-b border-slate-100 flex flex-wrap gap-x-8 gap-y-3 text-xs">
             <div class="flex flex-col"><span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Node</span> <span class="text-slate-900 font-bold font-mono">{{ selectedLog?.node }}</span></div>
             <div class="flex flex-col"><span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">User name</span> <span class="text-slate-700 font-medium">{{ selectedLog?.user }}</span></div>
@@ -206,7 +197,6 @@
             </div>
           </div>
 
-          <!-- Terminal Area (Light Console Style) -->
           <div class="flex-1 overflow-y-auto p-6 bg-slate-50 font-mono text-xs text-slate-700 whitespace-pre-wrap leading-relaxed no-scrollbar relative border-t border-slate-100 shadow-inner">
             <div v-if="isLoadingDetail && detailedLogText.length === 0" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-sm z-10 text-slate-500 font-sans">
               <i class="ph-bold ph-spinner animate-spin text-2xl mb-2 text-slate-400"></i>
@@ -238,14 +228,12 @@ const isLoadingCluster = ref(false);
 const searchQuery = ref('');
 const activeTab = ref('tasks');
 
-// === UNLIMITED SCROLL STATE ===
 const displayLimit = ref(BATCH_SIZE);
 const loadMoreTrigger = ref(null);
 let observer = null;
 let logInterval = null;
 let detailInterval = null;
 
-// === STATE: TASKS & CLUSTER LOG ===
 const showDetailModal = ref(false);
 const selectedLog = ref(null);
 const isLoadingDetail = ref(false);
@@ -254,7 +242,6 @@ const detailedLogText = ref([]);
 const proxmoxTasks = ref([]);
 const proxmoxClusterLogs = ref([]);
 
-// === FUNGSI HELPER ===
 const formatUnixTime = (unixTime) => {
   if (!unixTime) return '-';
   const date = new Date(unixTime * 1000);
@@ -288,7 +275,6 @@ const formatTaskDescription = (type, id) => {
   return id ? `${type} ${id}` : type; 
 };
 
-// === FILTER PENCARIAN ===
 const filteredTasks = computed(() => {
   if (!searchQuery.value) return proxmoxTasks.value;
   const q = searchQuery.value.toLowerCase();
@@ -311,7 +297,6 @@ const filteredClusterLogs = computed(() => {
   );
 });
 
-// === HASIL SLICE UNTUK RENDER (UNLIMITED SCROLL) ===
 const displayedTasks = computed(() => filteredTasks.value.slice(0, displayLimit.value));
 const displayedClusterLogs = computed(() => filteredClusterLogs.value.slice(0, displayLimit.value));
 
@@ -325,7 +310,6 @@ const currentTotalFilteredCount = computed(() =>
 
 const hasMoreToRender = computed(() => currentDisplayedCount.value < currentTotalFilteredCount.value);
 
-// === FETCH HANYA UNTUK TAB YANG SEDANG DIBUKA ===
 const fetchTasksOnly = async (isSilent = false) => {
   if (isSilent && document.hidden) return;
   if (!isSilent && proxmoxTasks.value.length === 0) isLoadingTasks.value = true;
@@ -346,7 +330,6 @@ const fetchTasksOnly = async (isSilent = false) => {
         }))
         .sort((a, b) => b.rawStartTime - a.rawStartTime);
 
-      // Update status pada selectedLog jika modal detail sedang dibuka
       if (showDetailModal.value && selectedLog.value) {
         const updated = proxmoxTasks.value.find(item => item.upid === selectedLog.value.upid);
         if (updated) selectedLog.value = updated;
@@ -394,7 +377,6 @@ const fetchActiveTabData = async (isSilent = false) => {
   }
 };
 
-// Reset displayLimit saat ganti sub-tab atau kata kunci pencarian, dan tarik data tab yang baru dibuka
 watch(activeTab, (newTab) => {
   displayLimit.value = BATCH_SIZE;
   if (newTab === 'tasks') {
@@ -417,7 +399,6 @@ const fetchTaskDetailSilent = async (log) => {
       detailedLogText.value = data.data.map(line => line.t);
     }
   } catch (err) {
-    // Abaikan error saat background refresh detail
   }
 };
 
@@ -430,7 +411,7 @@ const openLogDetail = async (log) => {
   try {
     const res = await fetch(`/api/proxmox/logs/task-detail?node=${log.node}&upid=${encodeURIComponent(log.upid)}`);
     const data = await res.json();
-    
+
     if (data.success) {
       detailedLogText.value = data.data.map(line => line.t);
     } else {
@@ -467,17 +448,14 @@ const handleVisibilityChange = () => {
 };
 
 onMounted(() => {
-  // Hanya fetch tab yang sedang dibuka pertama kali ('tasks')
   fetchActiveTabData(false);
 
-  // Auto-Refresh Realtime: Hit API secara SILENT setiap 3 detik hanya untuk tab yang sedang aktif
   logInterval = setInterval(() => {
     fetchActiveTabData(true);
   }, 3000);
 
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
-  // === SETUP OBSERVER UNTUK UNLIMITED SCROLL ===
   observer = new IntersectionObserver(async (entries) => {
     if (entries[0]?.isIntersecting && hasMoreToRender.value) {
       displayLimit.value += BATCH_SIZE;

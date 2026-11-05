@@ -14,14 +14,12 @@ const pool = mysql.createPool({
   timezone: DB_TZ_OFFSET
 });
 
-// Pastikan NOW()/CURRENT_TIMESTAMP/CURRENT_DATE/DATE_FORMAT di MySQL memakai UTC
 pool.pool.on('connection', (conn) => {
   conn.query(`SET time_zone = '${DB_TZ_OFFSET}'`, (err) => {
     if (err) console.error('[DB ERROR] Gagal mengatur timezone pada koneksi baru:', err.message);
   });
 });
 
-// Helper Transaksi Database untuk menjaga integritas data (ACID)
 export const withTransaction = async (callback) => {
     const connection = await pool.getConnection();
     await connection.beginTransaction();

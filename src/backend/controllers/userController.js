@@ -2,9 +2,6 @@ import db from '../config/database.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
-// ==========================================
-// HELPER: Fungsi untuk mencatat Log ke database
-// ==========================================
 const addSystemLog = async (level, source, message) => {
   try {
     await db.query('INSERT INTO system_logs (level, source, message) VALUES (?, ?, ?)', [level, source, message]);
@@ -13,9 +10,6 @@ const addSystemLog = async (level, source, message) => {
   }
 };
 
-// ==========================================
-// 1. GET SEMUA USER
-// ==========================================
 export const getUsers = async (req, res) => {
   try {
     const [rows] = await db.query('SELECT id, name, email, username, role, is_active, token_expires_at FROM users ORDER BY created_at DESC');
@@ -26,9 +20,6 @@ export const getUsers = async (req, res) => {
   }
 };
 
-// ==========================================
-// 2. TAMBAH USER BARU
-// ==========================================
 export const createUser = async (req, res) => {
   const { name, email, username, password, role, token_expires_at } = req.body;
 
@@ -53,7 +44,6 @@ export const createUser = async (req, res) => {
       [name, email, username, hashedPassword, role, apiToken, expiresAt, true]
     );
 
-    // CATAT LOG
     await addSystemLog('INFO', 'KELOLA PENGGUNA', `Pengguna baru ditambahkan: ${name} (${role})`);
 
     res.status(201).json({ success: true, message: 'Pengguna berhasil ditambahkan.' });
@@ -63,9 +53,6 @@ export const createUser = async (req, res) => {
   }
 };
 
-// ==========================================
-// 3. UPDATE USER (EDIT & RENEW TOKEN)
-// ==========================================
 export const updateUser = async (req, res) => {
   const { id } = req.params;
   const { name, email, username, password, role, token_expires_at } = req.body;
@@ -105,7 +92,6 @@ export const updateUser = async (req, res) => {
 
     await db.query(queryStr, queryParams);
 
-    // CATAT LOG
     await addSystemLog('INFO', 'KELOLA PENGGUNA', `Data pengguna diperbarui: ${name} (${username})`);
 
     res.status(200).json({ success: true, message: 'Data pengguna berhasil diperbarui.' });
@@ -115,21 +101,16 @@ export const updateUser = async (req, res) => {
   }
 };
 
-// ==========================================
-// 4. HAPUS USER (DELETE)
-// ==========================================
 export const deleteUser = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Ambil data nama sebelum dihapus untuk keperluan log
     const [rows] = await db.query('SELECT name, username FROM users WHERE id = ?', [id]);
     const userName = rows.length > 0 ? rows[0].name : `ID ${id}`;
     const userUsername = rows.length > 0 ? rows[0].username : '';
 
     await db.query('DELETE FROM users WHERE id = ?', [id]);
 
-    // CATAT LOG
     await addSystemLog('WARNING', 'KELOLA PENGGUNA', `Pengguna dihapus dari sistem: ${userName} (${userUsername})`);
 
     res.status(200).json({ success: true, message: 'Pengguna berhasil dihapus.' });
@@ -139,15 +120,12 @@ export const deleteUser = async (req, res) => {
   }
 };
 
-// ==========================================
-// 5. LIHAT TOKEN API
-// ==========================================
 export const getToken = async (req, res) => {
   const { id } = req.params;
   try {
     const [rows] = await db.query('SELECT api_token FROM users WHERE id = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan.' });
-    
+
     res.status(200).json({ success: true, token: rows[0].api_token });
   } catch (error) {
     console.error('Get Token Error:', error);
@@ -155,22 +133,17 @@ export const getToken = async (req, res) => {
   }
 };
 
-// ==========================================
-// 6. RESET / GENERATE TOKEN BARU
-// ==========================================
 export const resetToken = async (req, res) => {
   const { id } = req.params;
   try {
-    // Ambil nama user untuk log
     const [rows] = await db.query('SELECT name FROM users WHERE id = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan.' });
-    
+
     const userName = rows[0].name;
     const newToken = crypto.randomBytes(32).toString('hex');
-    
+
     await db.query('UPDATE users SET api_token = ? WHERE id = ?', [newToken, id]);
-    
-    // CATAT LOG
+
     await addSystemLog('INFO', 'KELOLA PENGGUNA', `Token API direset/digenerate ulang untuk pengguna: ${userName}`);
 
     res.status(200).json({ success: true, token: newToken, message: 'Token berhasil diperbarui.' });
@@ -180,29 +153,22 @@ export const resetToken = async (req, res) => {
   }
 };
 
-// ==========================================
-// TOGGLE STATUS USER (ON/OFF)
-// ==========================================
 export const toggleUserStatus = async (req, res) => {
     const { id } = req.params;
 
     try {
-        // Cek pengguna berdasarkan ID
         const [rows] = await db.query('SELECT username, is_active FROM users WHERE id = ?', [id]);
-        
+
         if (rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan.' });
         }
 
         const user = rows[0];
-        // Membalikkan nilai is_active saat ini (1 menjadi 0, atau 0 menjadi 1)
         const newStatus = user.is_active ? 0 : 1;
         const statusText = newStatus ? 'diaktifkan' : 'dinonaktifkan';
 
-        // 1. Update status di database
         await db.query('UPDATE users SET is_active = ? WHERE id = ?', [newStatus, id]);
 
-        // 2. CATAT KE SYSTEM LOGS SECARA LANGSUNG
         await db.query(
             'INSERT INTO system_logs (level, source, message) VALUES (?, ?, ?)',
             ['INFO', 'KELOLA PENGGUNA', `Status akun '${user.username}' berhasil ${statusText} oleh Admin.`]

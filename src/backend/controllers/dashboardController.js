@@ -3,7 +3,6 @@ import axios from 'axios';
 import https from 'https';
 import { WIB_OFFSET_MS, getWibYear } from '../config/timezone.js';
 
-// Cache singkat agar request beruntun ke API Proxmox tetap cepat dan ringan
 const rrdCache = new Map();
 let clusterSnapshotCache = { ts: 0, data: null };
 
@@ -74,12 +73,10 @@ const fetchProxmoxClusterData = async (timeframeKey = '1h') => {
             activeClient = client;
             break;
         } catch (err) {
-            // Lanjut ke node cadangan berikutnya jika ada
         }
     }
 
     if (!clusterInfo) {
-        // Fallback ke proxmox_targets di database jika API Proxmox sedang tidak dapat dihubungi
         const [pxTargets] = await db.query("SELECT type, status, name FROM proxmox_targets WHERE type = 'NODE'");
         const totalN = pxTargets.length || connectedServers.length;
         const onlineN = pxTargets.filter(n => n.status === 'UP').length;
@@ -119,7 +116,6 @@ const fetchProxmoxClusterData = async (timeframeKey = '1h') => {
         avgRam = Number((sumRam / onlineNodesCount).toFixed(1));
     }
 
-    // Ambil data grafik RRD dari node online untuk 1h (hour), 24h (day), atau 7d (week)
     const rrdApiTimeframe = timeframeKey === '1h' ? 'hour' : (timeframeKey === '7d' ? 'week' : 'day');
     const windowSec = timeframeKey === '1h' ? 3600 : (timeframeKey === '7d' ? 7 * 24 * 3600 : 24 * 3600);
     const cacheKey = `rrd_${timeframeKey}`;
@@ -161,7 +157,6 @@ const fetchProxmoxClusterData = async (timeframeKey = '1h') => {
                         b.count += 1;
                     }
                 } catch (err) {
-                    // Abaikan jika salah satu node gagal merespons RRD
                 }
             })
         );
@@ -209,9 +204,7 @@ const fetchProxmoxClusterData = async (timeframeKey = '1h') => {
     };
 };
 
-// Helper ambil data ringkasan dashboard (digunakan oleh API & Export PDF)
 export const fetchDashboardSummaryData = async (timeframeKey = '1h') => {
-    // 1. Data Pengguna
     const [[userStats]] = await db.query(`
         SELECT 
             COUNT(*) AS total_users,
@@ -220,7 +213,6 @@ export const fetchDashboardSummaryData = async (timeframeKey = '1h') => {
         FROM users
     `);
 
-    // 2. Data Target Network (ICMP & TCP)
     const [targets] = await db.query('SELECT id, name, protocol, status, last_latency, is_active FROM monitoring_targets');
 
     const parseLatencyNumber = (val) => {
@@ -247,7 +239,6 @@ export const fetchDashboardSummaryData = async (timeframeKey = '1h') => {
         ? Number((tcpLatencies.reduce((a, b) => a + b, 0) / tcpLatencies.length).toFixed(1))
         : 0;
 
-    // 3. Data Riwayat Alert & Incident Terbaru (10 terbaru)
     const [alertRows] = await db.query(`
         SELECT 
             a.id, a.target_type, a.target_name, a.severity, a.original_severity,
@@ -293,7 +284,6 @@ export const fetchDashboardSummaryData = async (timeframeKey = '1h') => {
         };
     });
 
-    // 4. Data Proxmox Cluster & RRD Chart
     const proxmoxData = await fetchProxmoxClusterData(timeframeKey);
 
     return {
@@ -321,7 +311,6 @@ export const fetchDashboardSummaryData = async (timeframeKey = '1h') => {
     };
 };
 
-// GET /api/dashboard/summary
 export const getDashboardSummary = async (req, res) => {
     try {
         const rawTf = String(req.query.timeframe || '1h').toLowerCase();

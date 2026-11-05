@@ -1,13 +1,10 @@
 import db from '../config/database.js';
 import { WIB_OFFSET_MS, getWibYear } from '../config/timezone.js';
 
-// ==========================================
-// FUNGSI HELPER: FORMAT DETIK KE TEKS
-// ==========================================
 const formatSec = (totalSeconds) => {
     if (totalSeconds == null) return '-';
     if (totalSeconds <= 0) return '0d';
-    
+
     const d = Math.floor(totalSeconds / 86400);
     const h = Math.floor((totalSeconds % 86400) / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
@@ -22,9 +19,6 @@ const formatSec = (totalSeconds) => {
     return result.join(' ');
 };
 
-// ==========================================
-// 1. AMBIL SEMUA TIKET (DASHBOARD)
-// ==========================================
 export const fetchIncidentsData = async () => {
     const [rows] = await db.query(`
         SELECT 
@@ -77,9 +71,6 @@ export const getIncidents = async (req, res) => {
     }
 };
 
-// ==========================================
-// 1b. AMBIL RINGKASAN STATISTIK TIKET (5 KOLOM STATS BAR)
-// ==========================================
 export const getIncidentStats = async (req, res) => {
     try {
         const [[stats]] = await db.query(`
@@ -117,12 +108,8 @@ export const getIncidentStats = async (req, res) => {
     }
 };
 
-// ==========================================
-// 2. TEKNISI KONFIRMASI (JOIN TIKET)
-// ==========================================
 export const joinIncident = async (req, res) => {
     const alert_id = req.body.alert_id || req.body.id;
-    // PENCEGAHAN SPOOFING: Hanya gunakan identitas dari token sesi (req.user)
     const user_id = req.user?.id;
     const user_name = req.user?.name || req.user?.username;
 
@@ -131,7 +118,6 @@ export const joinIncident = async (req, res) => {
     }
 
     try {
-        // BLOKIR KEPALA BIDANG
         const [userRows] = await db.query('SELECT role FROM users WHERE id = ?', [user_id]);
         if (userRows.length > 0 && userRows[0].role === 'Kepala Bidang') {
             return res.status(403).json({ 
@@ -152,7 +138,7 @@ export const joinIncident = async (req, res) => {
             'INSERT IGNORE INTO alert_handlers (alert_id, user_id, user_name) VALUES (?, ?, ?)', 
             [alert_id, user_id, user_name]
         );
-        
+
         await db.query(
             'INSERT INTO system_logs (level, source, message) VALUES (?, ?, ?)', 
             ['INFO', 'TICKET SYSTEM', `Teknisi ${user_name} mengkonfirmasi penanganan tiket #${alert_id}`]
@@ -165,12 +151,8 @@ export const joinIncident = async (req, res) => {
     }
 };
 
-// ==========================================
-// 3. TEKNISI TANDAI SELESAI (RESOLVE)
-// ==========================================
 export const resolveIncident = async (req, res) => {
     const alert_id = req.body.alert_id || req.body.id;
-    // PENCEGAHAN SPOOFING: Hanya gunakan identitas dari token sesi
     const user_id = req.user?.id; 
     const user_name = req.user?.name || req.user?.username || 'Teknisi';
 
@@ -179,7 +161,6 @@ export const resolveIncident = async (req, res) => {
     }
 
     try {
-        // BLOKIR KEPALA BIDANG
         const [userRows] = await db.query('SELECT role FROM users WHERE id = ?', [user_id]);
         if (userRows.length > 0 && userRows[0].role === 'Kepala Bidang') {
             return res.status(403).json({ 
@@ -189,7 +170,7 @@ export const resolveIncident = async (req, res) => {
         }
 
         const [alertData] = await db.query('SELECT severity, is_resolved FROM active_alerts WHERE id = ?', [alert_id]);
-        
+
         if (alertData.length === 0) {
             return res.status(404).json({ success: false, message: 'Tiket tidak ditemukan.' });
         }
@@ -209,10 +190,6 @@ export const resolveIncident = async (req, res) => {
         res.status(500).json({ success: false, message: 'Gagal menyelesaikan tiket' });
     }
 };
-
-// ==========================================
-// 4. ANALITIK KINERJA SISTEM
-// ==========================================
 
 const PERIODS = {
     '24h': { ms: 24 * 3600 * 1000, bucket: 'hour' },
@@ -280,7 +257,6 @@ export const fetchAnalyticsData = async ({
     const winEnd = Date.now();
     const winStart = winEnd - period.ms;
 
-    // Batas bawah = umur target (created_at tabel master), bukan insiden pertama
     const targetId = Number(reqTargetId);
     const targetType = String(reqTargetType || '').toUpperCase();
     let masterCreatedMs = null;
@@ -293,17 +269,14 @@ export const fetchAnalyticsData = async ({
             if (tRow && tRow.created_at) masterCreatedMs = new Date(tRow.created_at).getTime();
         }
     } else {
-        // Tanpa target spesifik (agregat): gunakan target tertua dari kedua tabel master
         const [[nRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM monitoring_targets');
         const [[pRow]] = await db.query('SELECT MIN(created_at) AS first_at FROM proxmox_targets');
         const times = [nRow?.first_at, pRow?.first_at].filter(Boolean).map(t => new Date(t).getTime());
         if (times.length) masterCreatedMs = Math.min(...times);
     }
 
-    // Jika winStart lebih lama dari umur target, pakai created_at target
     const effectiveStart = Math.min(winEnd, masterCreatedMs !== null ? Math.max(winStart, masterCreatedMs) : winStart);
 
-    // Severity yang diminta: ALL -> ['DOWN','CRITICAL'], selain itu sesuai filter
     const requestedSeverities = severityFilter === 'ALL' ? ['DOWN', 'CRITICAL'] : [severityFilter];
 
     let query = `
@@ -320,7 +293,6 @@ export const fetchAnalyticsData = async ({
     }
     const [rows] = await db.query(query, params);
 
-    // WARNING: durasi dilaporkan sebagai degradasi, tidak memotong uptime
     const terapkanFilter = (m) => {
         if (severityFilter !== 'WARNING') return m;
         const { total_downtime_sec, downtime_duration, ...rest } = m;
@@ -389,9 +361,6 @@ export const getAnalytics = async (req, res) => {
     }
 };
 
-// ==========================================
-// 5. ENDPOINT KHUSUS MOBILE: RINGKASAN SLA & MTBF
-// ==========================================
 export const getMobileAnalyticsSummary = async (req, res) => {
     try {
         const { summary } = await fetchAnalyticsData({

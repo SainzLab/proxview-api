@@ -1,6 +1,5 @@
-<template> 
+<template>
   <main class="bg-[#f8f9fa] min-h-screen font-sans p-8 pb-12 overflow-x-hidden relative animate-fade-in"> 
-    <!-- Header Halaman --> 
     <div class="flex justify-between items-end mb-6"> 
       <div> 
         <h2 class="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-3"> 
@@ -15,7 +14,6 @@
       </div> 
     </div> 
 
-    <!-- Filter & Search Bar --> 
     <div class="bg-white border border-slate-200/80 p-4 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] mb-6 flex justify-between items-center"> 
       <div class="relative w-96"> 
         <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i> 
@@ -31,7 +29,6 @@
       </div> 
     </div> 
 
-    <!-- Data Table & Pagination Container --> 
     <div class="bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col"> 
       <div class="overflow-x-auto"> 
         <table class="w-full text-left border-collapse"> 
@@ -109,7 +106,6 @@
           </tbody> 
         </table> 
       </div> 
-      <!-- PAGINATION CONTROLS --> 
       <div v-if="!isLoading && filteredUsers.length > 0" class="bg-slate-50/50 px-6 py-4 flex items-center justify-between border-t border-slate-100"> 
         <span class="text-xs text-slate-500 font-medium"> 
           Menampilkan <span class="font-bold text-slate-900">{{ (currentPage - 1) * itemsPerPage + 1 }}</span> sampai <span class="font-bold text-slate-900">{{ Math.min(currentPage * itemsPerPage, filteredUsers.length) }}</span> dari <span class="font-bold text-slate-900">{{ filteredUsers.length }}</span> pengguna 
@@ -125,7 +121,6 @@
       </div> 
     </div> 
 
-    <!-- MODAL MANAJEMEN TOKEN API --> 
     <Teleport to="body"> 
       <div v-if="showTokenModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeTokenModal"> 
         <div class="bg-white border border-slate-200/80 shadow-xl rounded-2xl w-full max-w-lg overflow-hidden transform transition-all relative"> 
@@ -154,7 +149,6 @@
                     <i :class="showApiToken ? 'ph-bold ph-eye-slash' : 'ph-bold ph-eye'" class="text-lg"></i> 
                   </button> 
                 </div> 
-                <!-- PERBAIKAN: Sisipkan apiTokenString ke pemanggilan fungsi copyToken -->
                 <button @click="copyToken(apiTokenString)" class="px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg transition flex items-center justify-center gap-2 shadow-sm" title="Salin Token"> 
                   <i class="ph-bold ph-copy"></i> 
                 </button> 
@@ -173,7 +167,6 @@
       </div> 
     </Teleport> 
 
-    <!-- MODAL KONFIRMASI GENERATE ULANG TOKEN --> 
     <Teleport to="body"> 
       <div v-if="showConfirmResetTokenModal" class="fixed inset-0 z-[1050] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeConfirmResetTokenModal"> 
         <div class="bg-white border border-slate-200/80 shadow-xl rounded-2xl w-full max-w-md overflow-hidden transform transition-all relative"> 
@@ -202,7 +195,6 @@
       </div> 
     </Teleport> 
 
-    <!-- MODAL FORM PENGGUNA (TAMBAH / EDIT) --> 
     <Teleport to="body"> 
       <div v-if="showModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeModal"> 
         <div class="bg-white border border-slate-200/80 rounded-2xl w-full max-w-lg shadow-xl overflow-hidden"> 
@@ -257,7 +249,6 @@
                 <option value="Kepala Bidang">Kepala Bidang (Read-Only Mobile API)</option> 
               </select> 
             </div> 
-            <!-- Conditional Field for Token Expiry --> 
             <div v-if="form.role === 'Teknisi' || form.role === 'Kepala Bidang'" class="bg-amber-50/50 p-4 rounded-xl border border-amber-200/60 mt-3 shadow-inner"> 
               <label class="block text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-2"> 
                 <i class="ph-bold ph-key"></i> Masa Berlaku Token API Mobile 
@@ -278,7 +269,6 @@
       </div> 
     </Teleport> 
 
-    <!-- MODAL KONFIRMASI HAPUS --> 
     <Teleport to="body"> 
       <div v-if="showDeleteModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeDeleteModal"> 
         <div class="bg-white border border-slate-200/80 shadow-xl rounded-2xl w-full max-w-md overflow-hidden transform transition-all relative"> 
@@ -308,12 +298,11 @@
       </div> 
     </Teleport> 
 
-    <!-- TOAST NOTIFICATION --> 
     <ToastNotification :show="toast.show" :type="toast.type" :title="toast.title" :message="toast.message" @close="toast.show = false" /> 
   </main> 
 </template> 
 
-<script setup> 
+<script setup>
 import { ref, onMounted, computed, watch } from 'vue'; 
 import { toWibDateInput, isTokenExpired } from '../../utils/datetime.js'; 
 import ToastNotification from '@/components/common/ToastNotification.vue'; 
@@ -653,6 +642,6 @@ const getTokenStatus = (user) => {
 
 onMounted(() => { 
   fetchUsers(); 
-}); 
+});
 </script> 
 <style scoped> </style>

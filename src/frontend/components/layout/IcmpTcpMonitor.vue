@@ -1,8 +1,6 @@
 <template>
   <div class="animate-fade-in font-sans">
-    <!-- Header Halaman ICMP -->
     <div class="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 mb-6">
-      <!-- Judul Kiri -->
       <div class="shrink-0">
         <h2 class="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-3">
           <i class="ph-bold ph-tree-structure text-slate-700"></i>
@@ -11,10 +9,8 @@
         <p class="text-slate-500 text-sm font-medium">Pemantauan status untuk protokol ICMP Ping dan TCP Port.</p>
       </div>
 
-      <!-- Aksi Kanan (Dibungkus dengan flex-wrap agar otomatis turun jika tidak muat) -->
       <div class="flex flex-wrap items-center gap-3 w-full 2xl:w-auto">
-        
-        <!-- TOGGLE MODE BUTTON -->
+
         <div class="flex bg-slate-50 border border-slate-200/80 p-1 rounded-lg shadow-inner h-[42px] items-center shrink-0">
           <button type="button" aria-pressed="true" class="px-3 rounded-md text-xs font-bold transition-all duration-300 flex justify-center items-center gap-1.5 bg-white text-slate-900 border border-slate-200 shadow-sm cursor-default whitespace-nowrap h-full">
             <i class="ph-bold ph-plugs text-sm"></i> ICMP / TCP
@@ -24,7 +20,6 @@
           </button>
         </div>
 
-        <!-- SEARCH BAR -->
         <div class="relative h-[42px] flex items-center grow min-w-[200px] md:max-w-[320px]">
           <i class="ph ph-magnifying-glass absolute left-3 text-slate-400 pointer-events-none"></i>
           <input type="text" v-model="searchQuery" placeholder="Cari nama, IP, atau deskripsi..." class="pl-9 pr-8 h-full w-full border border-slate-200 bg-white text-slate-900 rounded-lg text-sm font-medium hover:bg-slate-50 focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition outline-none placeholder:text-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
@@ -33,9 +28,7 @@
           </button>
         </div>
 
-        <!-- FILTER & TOMBOL TAMBAH (Digabung agar selalu berdampingan) -->
         <div class="flex items-center gap-3 shrink-0">
-          <!-- Filter Status -->
           <div class="relative h-[42px] w-[42px] shrink-0">
             <select v-model="filterStatus" title="Filter Status" class="w-full h-full border border-slate-200 bg-white text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition outline-none appearance-none cursor-pointer text-center opacity-0 absolute inset-0 z-10">
               <option value="ALL">Semua Status</option>
@@ -48,17 +41,15 @@
             </div>
           </div>
 
-          <!-- Tombol Tambah -->
           <button @click="openAddModal" class="px-4 h-[42px] bg-slate-900 text-white rounded-lg flex items-center gap-2 hover:bg-slate-800 text-xs font-bold transition shadow-[0_1px_2px_rgba(0,0,0,0.04)] whitespace-nowrap shrink-0">
             <i class="ph-bold ph-plus-circle text-lg"></i>
             TAMBAH TARGET
           </button>
         </div>
-        
+
       </div>
     </div>
 
-    <!-- Tabel ICMP/TCP -->
     <div class="bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse min-w-[800px]">
@@ -189,7 +180,6 @@
         </table>
       </div>
 
-      <!-- Pagination -->
       <div v-if="!isLoading && filteredTargets.length > 0" class="bg-slate-50/50 px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100">
         <span class="text-xs text-slate-500 font-medium text-center sm:text-left">
           Menampilkan <span class="font-bold text-slate-900">{{ (currentPage - 1) * itemsPerPage + 1 }}</span> sampai <span class="font-bold text-slate-900">{{ Math.min(currentPage * itemsPerPage, filteredTargets.length) }}</span> dari <span class="font-bold text-slate-900">{{ filteredTargets.length }}</span> target
@@ -206,7 +196,6 @@
     </div>
 
     <Teleport to="body">
-      <!-- Modal Edit/Tambah -->
       <div v-if="showModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeModal">
         <div class="bg-white border border-slate-200/80 rounded-2xl w-full max-w-lg shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
           <div class="flex justify-between items-center p-6 bg-slate-50/50 border-b border-slate-200/80 shrink-0">
@@ -285,7 +274,6 @@
       </div>
     </Teleport>
 
-    <!-- Modal Confirm Delete -->
     <Teleport to="body">
       <div v-if="showDeleteModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeDeleteModal">
         <div class="bg-white border border-slate-200/80 shadow-xl rounded-2xl w-full max-w-md overflow-hidden transform transition-all relative">
@@ -317,7 +305,6 @@
       </div>
     </Teleport>
 
-    <!-- Toast -->
     <ToastNotification :show="toast.show" :type="toast.type" :title="toast.title" :message="toast.message" @close="toast.show = false" />
   </div>
 </template>
@@ -488,13 +475,13 @@ const saveTarget = async () => {
     const url = isEditMode.value ? `/api/targets/${editTargetId.value}` : '/api/targets';
     const method = isEditMode.value ? 'PUT' : 'POST';
     if (form.value.protocol === 'ICMP PING') form.value.port = null;
-    
+
     const res = await fetch(url, {
       method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form.value)
     });
-    
+
     const data = await res.json();
     if (data.success) {
       closeModal();

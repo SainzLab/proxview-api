@@ -1,18 +1,15 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// ==========================================
-// KONFIGURASI TEMA & LAYOUT PDF
-// ==========================================
 export const PDF_THEME = {
-  headerBg: [15, 23, 42],        // Slate-900 (#0f172a)
-  headerTitle: [16, 185, 129],    // Emerald-500 (#10b981)
-  headerSubtext: [226, 232, 240], // Slate-200 (#e2e8f0)
-  sectionTitle: [15, 23, 42],     // Slate-900
-  bodyText: [30, 41, 59],         // Slate-800 (#1e293b)
-  mutedText: [100, 116, 139],     // Slate-500 (#64748b)
-  footerText: [148, 163, 184],    // Slate-400 (#94a3b8)
-  borderColor: [226, 232, 240],   // Slate-200 (#e2e8f0)
+  headerBg: [15, 23, 42],
+  headerTitle: [16, 185, 129],
+  headerSubtext: [226, 232, 240],
+  sectionTitle: [15, 23, 42],
+  bodyText: [30, 41, 59],
+  mutedText: [100, 116, 139],
+  footerText: [148, 163, 184],
+  borderColor: [226, 232, 240],
   tableDarkHeadBg: [15, 23, 42],
   tableSlateHeadBg: [30, 41, 59],
   tableEmeraldHeadBg: [16, 185, 129],
@@ -40,9 +37,6 @@ export const PERIOD_CONFIG = {
   '30d': { label: '30 Hari Terakhir', ms: 30 * 24 * 3600 * 1000, intervalLabel: 'Hari' }
 };
 
-// ==========================================
-// HELPER FORMATTING
-// ==========================================
 export const formatWibDateTime = (value, withSeconds = true) => {
   if (!value) return '-';
   const d = value instanceof Date ? value : new Date(value);
@@ -98,17 +92,14 @@ const renderHeaderBanner = (doc, { title, metaLines = [], height = 30 }) => {
   const width = doc.internal.pageSize.width || PDF_PAGE.width;
   const leftMargin = PDF_PAGE.margin.left;
 
-  // Latar belakang banner
   doc.setFillColor(...PDF_THEME.headerBg);
   doc.rect(0, 0, width, height, 'F');
 
-  // Judul utama laporan
   doc.setTextColor(...PDF_THEME.headerTitle);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   doc.text(title, leftMargin, 13);
 
-  // Metadata / subtitle lines
   doc.setTextColor(...PDF_THEME.headerSubtext);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
@@ -139,24 +130,18 @@ const renderFooters = (doc) => {
     doc.setFontSize(8);
     doc.setTextColor(...PDF_THEME.footerText);
 
-    // Garis batas footer tipis
     doc.setDrawColor(...PDF_THEME.borderColor);
     doc.setLineWidth(0.2);
     doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
 
-    // Teks keterangan di kiri
     doc.text('ProxView Monitoring System - Dokumen Laporan Resmi', margin, pageHeight - 5.5);
 
-    // Teks nomor halaman di kanan
     const pageStr = `Halaman ${i} dari ${pageCount}`;
     const textWidth = doc.getTextWidth(pageStr);
     doc.text(pageStr, pageWidth - margin - textWidth, pageHeight - 5.5);
   }
 };
 
-// ==========================================
-// 1. GENERATE PDF: REKAPITULASI GANGGUAN & SLA
-// ==========================================
 export const generateRekapGangguanPdf = ({
   analyticsData = {},
   incidentsData = [],
@@ -173,7 +158,6 @@ export const generateRekapGangguanPdf = ({
   const doc = createPdfDocument();
   const margin = { left: PDF_PAGE.margin.left, right: PDF_PAGE.margin.right };
 
-  // Header Banner
   renderHeaderBanner(doc, {
     title: 'PROXVIEW - LAPORAN REKAPITULASI GANGGUAN & ANALITIK SLA',
     metaLines: [
@@ -183,7 +167,6 @@ export const generateRekapGangguanPdf = ({
     height: 32
   });
 
-  // Bagian 1: Ringkasan Metrik Kinerja Sistem (SLA)
   renderSectionTitle(doc, '1. Ringkasan Metrik Kinerja Sistem (SLA)', 40);
 
   autoTable(doc, {
@@ -214,7 +197,6 @@ export const generateRekapGangguanPdf = ({
     margin
   });
 
-  // Bagian 2: Rincian Analitik per Jam / Hari
   let nextY = doc.lastAutoTable.finalY + 8;
   renderSectionTitle(doc, `2. Rincian Analitik per ${periodCfg.intervalLabel || 'Hari'}`, nextY);
 
@@ -249,7 +231,6 @@ export const generateRekapGangguanPdf = ({
     margin
   });
 
-  // Bagian 3: Daftar Riwayat Tiket Gangguan
   nextY = doc.lastAutoTable.finalY + 8;
   if (nextY > 175) {
     doc.addPage();
@@ -308,9 +289,6 @@ export const generateRekapGangguanPdf = ({
   return Buffer.from(doc.output('arraybuffer'));
 };
 
-// ==========================================
-// 2. GENERATE PDF: RINGKASAN DASHBOARD & SLA
-// ==========================================
 export const generateDashboardSummaryPdf = ({
   summary = {},
   slaAnalytics = {},
@@ -320,7 +298,6 @@ export const generateDashboardSummaryPdf = ({
   const doc = createPdfDocument();
   const margin = { left: PDF_PAGE.margin.left, right: PDF_PAGE.margin.right };
 
-  // Header Banner
   renderHeaderBanner(doc, {
     title: 'PROXVIEW - LAPORAN RINGKASAN INFRASTRUKTUR & SLA',
     metaLines: [
@@ -329,7 +306,6 @@ export const generateDashboardSummaryPdf = ({
     height: 30
   });
 
-  // Bagian 1: Ringkasan Status Infrastruktur
   renderSectionTitle(doc, '1. Ringkasan Status Infrastruktur', 38);
 
   const users = summary.users || { total: 0, active: 0 };
@@ -365,7 +341,6 @@ export const generateDashboardSummaryPdf = ({
     margin
   });
 
-  // Bagian 2: Ringkasan Metrik SLA
   let nextY = doc.lastAutoTable.finalY + 8;
   renderSectionTitle(doc, `2. Ringkasan Metrik SLA (${slaFilterLabel})`, nextY);
 
@@ -406,7 +381,6 @@ export const generateDashboardSummaryPdf = ({
     margin
   });
 
-  // Bagian 3: Log Alert & Incident Terbaru
   nextY = doc.lastAutoTable.finalY + 8;
   renderSectionTitle(doc, '3. Log Alert & Incident Terbaru', nextY);
 

@@ -1,9 +1,6 @@
 import db from '../config/database.js';
 import { resetTargetAlertState } from '../services/monitoringDaemon.js';
 
-// ==========================================
-// HELPER: Fungsi untuk mencatat Log ke database
-// ==========================================
 const addSystemLog = async (level, source, message) => {
   try {
     await db.query('INSERT INTO system_logs (level, source, message) VALUES (?, ?, ?)', [level, source, message]);
@@ -12,9 +9,6 @@ const addSystemLog = async (level, source, message) => {
   }
 };
 
-// ==========================================
-// 1. GET SEMUA TARGET
-// ==========================================
 export const getTargets = async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM monitoring_targets ORDER BY created_at DESC');
@@ -25,23 +19,19 @@ export const getTargets = async (req, res) => {
   }
 };
 
-// ==========================================
-// 2. TAMBAH TARGET BARU
-// ==========================================
 export const createTarget = async (req, res) => {
   const { name, description, protocol, ip_address, port, check_interval, max_retries } = req.body;
   try {
     const targetPort = protocol === 'TCP SOCKET' ? port : null;
-    
+
     await db.query(
       `INSERT INTO monitoring_targets (name, description, protocol, ip_address, port, check_interval, max_retries, is_active) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [name, description, protocol, ip_address, targetPort, check_interval || 60, max_retries || 3, true]
     );
-    
-    // CATAT LOG: Tambah Target
+
     await addSystemLog('INFO', 'TARGET MONITORING', `Target baru ditambahkan: ${name} (${ip_address})`);
-    
+
     res.status(201).json({ success: true, message: 'Target monitoring berhasil ditambahkan.' });
   } catch (error) {
     console.error('Create Target Error:', error);
@@ -49,26 +39,21 @@ export const createTarget = async (req, res) => {
   }
 };
 
-// ==========================================
-// 3. UPDATE / EDIT TARGET
-// ==========================================
 export const updateTarget = async (req, res) => {
   const { id } = req.params;
   const { name, description, protocol, ip_address, port, check_interval, max_retries } = req.body;
   try {
     const targetPort = protocol === 'TCP SOCKET' ? port : null;
 
-    // Reset last_check = NULL agar Daemon segera melakukan pengecekan ulang di detik berikutnya
     await db.query(
       `UPDATE monitoring_targets SET name=?, description=?, protocol=?, ip_address=?, port=?, check_interval=?, max_retries=?, last_check=NULL WHERE id=?`,
       [name, description, protocol, ip_address, targetPort, check_interval, max_retries, id]
     );
 
     resetTargetAlertState('NETWORK', id);
-    
-    // CATAT LOG: Edit Target
+
     await addSystemLog('INFO', 'TARGET MONITORING', `Konfigurasi target diperbarui: ${name} (${ip_address})`);
-    
+
     res.status(200).json({ success: true, message: 'Data target berhasil diperbarui.' });
   } catch (error) {
     console.error('Update Target Error:', error);
@@ -76,30 +61,23 @@ export const updateTarget = async (req, res) => {
   }
 };
 
-// ==========================================
-// 4. HAPUS TARGET
-// ==========================================
 export const deleteTarget = async (req, res) => {
   const { id } = req.params;
   try {
-    // Ambil nama target terlebih dahulu sebelum dihapus untuk keperluan log
     const [rows] = await db.query('SELECT name, ip_address FROM monitoring_targets WHERE id = ?', [id]);
     const targetName = rows.length > 0 ? rows[0].name : `ID ${id}`;
     const targetIp = rows.length > 0 ? rows[0].ip_address : '';
 
-    // Tutup tiket aktif yang terkait sebelum target dihapus
     await db.query(
       `UPDATE active_alerts SET is_resolved = 1, resolved_at = CURRENT_TIMESTAMP WHERE target_id = ? AND target_type = 'NETWORK' AND is_resolved = 0`,
       [id]
     );
     resetTargetAlertState('NETWORK', id);
 
-    // Data akan terhapus beserta riwayatnya (karena ON DELETE CASCADE)
     await db.query('DELETE FROM monitoring_targets WHERE id = ?', [id]);
-    
-    // CATAT LOG: Hapus Target
+
     await addSystemLog('WARNING', 'TARGET MONITORING', `Target dihapus dari sistem: ${targetName} ${targetIp ? `(${targetIp})` : ''}`);
-    
+
     res.status(200).json({ success: true, message: 'Target berhasil dihapus.' });
   } catch (error) {
     console.error('Delete Target Error:', error);
@@ -107,24 +85,19 @@ export const deleteTarget = async (req, res) => {
   }
 };
 
-// ==========================================
-// 5. TOGGLE PAUSE / START (is_active)
-// ==========================================
 export const toggleTargetStatus = async (req, res) => {
   const { id } = req.params;
   const { is_active } = req.body;
   try {
-    // Ambil nama target untuk keperluan log
     const [rows] = await db.query('SELECT name FROM monitoring_targets WHERE id = ?', [id]);
     const targetName = rows.length > 0 ? rows[0].name : `ID ${id}`;
 
     await db.query('UPDATE monitoring_targets SET is_active = ?, last_check = NULL WHERE id = ?', [is_active, id]);
     resetTargetAlertState('NETWORK', id);
-    
-    // CATAT LOG: Pause / Start
+
     const actionName = is_active ? 'Mulai (Start)' : 'Jeda (Pause)';
     await addSystemLog('INFO', 'TARGET MONITORING', `Monitoring ${actionName} untuk target: ${targetName}`);
-    
+
     res.status(200).json({ success: true, message: is_active ? 'Monitoring Dilanjutkan' : 'Monitoring Dijeda' });
   } catch (error) {
     console.error('Toggle Target Error:', error);
@@ -132,9 +105,6 @@ export const toggleTargetStatus = async (req, res) => {
   }
 };
 
-// ==========================================
-// 6. AMBIL RIWAYAT GRAFIK LATENCY (20 DATA TERAKHIR)
-// ==========================================
 export const getTargetHistory = async (req, res) => {
   const { id } = req.params;
   try {
@@ -157,12 +127,8 @@ export const getTargetHistory = async (req, res) => {
   }
 };
 
-// ==========================================
-// 7. AMBIL STATUS KONEKTIVITAS NODE GLOBAL (Untuk Sidebar)
-// ==========================================
 export const getSystemStatus = async (req, res) => {
   try {
-    // 1. Analisa Status ICMP & TCP
     const [targets] = await db.query('SELECT protocol, status, is_active FROM monitoring_targets');
 
     const icmpTargets = targets.filter(t => t.protocol === 'ICMP PING' && t.is_active === 1);
@@ -171,7 +137,6 @@ export const getSystemStatus = async (req, res) => {
     const tcpTargets = targets.filter(t => t.protocol === 'TCP SOCKET' && t.is_active === 1);
     const tcpStatus = tcpTargets.length > 0 && tcpTargets.some(t => t.status === 'UP') ? 'ACTIVE' : 'DOWN';
 
-    // 2. Analisa Status Proxmox Cluster
     const [proxmoxNodes] = await db.query('SELECT status FROM proxmox_nodes');
     const proxmoxStatus = proxmoxNodes.length > 0 && proxmoxNodes.some(n => n.status === 'TERHUBUNG') ? 'ACTIVE' : 'DOWN';
 

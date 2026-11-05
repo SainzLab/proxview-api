@@ -1,10 +1,5 @@
-// Helper waktu frontend.
-// Backend/database selalu UTC; semua tampilan dikonversi ke WIB (Asia/Jakarta).
 export const APP_TIMEZONE = 'Asia/Jakarta';
 
-// Parse nilai waktu dari API menjadi Date yang benar.
-// - Date / ISO ber-zona ('...Z' atau '+hh:mm') -> dipakai apa adanya
-// - String tanpa zona ('YYYY-MM-DD HH:mm:ss' / 'YYYY-MM-DDTHH:mm:ss') -> dianggap UTC
 export const parseUtcDate = (value) => {
   if (!value) return null;
   if (value instanceof Date) return value;
@@ -14,7 +9,6 @@ export const parseUtcDate = (value) => {
   return isNaN(d.getTime()) ? null : d;
 };
 
-// '21 Okt 2026 17:00:05'
 export const formatWibDateTime = (value, withSeconds = true) => {
   const d = parseUtcDate(value);
   if (!d) return '-';
@@ -24,7 +18,6 @@ export const formatWibDateTime = (value, withSeconds = true) => {
   }).format(d).replace(/\./g, ':');
 };
 
-// '17:00:05'
 export const formatWibTime = (value) => {
   const d = parseUtcDate(value);
   if (!d) return '-';
@@ -33,7 +26,6 @@ export const formatWibTime = (value) => {
   }).format(d);
 };
 
-// '21 Okt - 17:00'
 export const formatWibShort = (value) => {
   const d = parseUtcDate(value);
   if (!d) return '-';
@@ -42,14 +34,11 @@ export const formatWibShort = (value) => {
   }).replace(',', ' -').replace(/\./g, ':');
 };
 
-// 'YYYY-MM-DD' menurut WIB (untuk input type="date")
 export const toWibDateInput = (value) => {
   const d = parseUtcDate(value);
   return d ? d.toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE }) : '';
 };
 
-// Token berlaku sampai akhir hari kedaluwarsa menurut WIB.
-// token_expires_at dari API = 00:00 UTC tanggal tsb -> batas = +17 jam (= 00:00 WIB hari berikutnya).
 export const isTokenExpired = (value) => {
   const d = parseUtcDate(value);
   if (!d) return false;

@@ -40,7 +40,6 @@ export const ensureCleanupSettingsTable = async () => {
             )
         `);
 
-        // Seed pengaturan awal terpisah untuk system_logs dan incident_history
         await db.query(`
             INSERT IGNORE INTO cleanup_settings (setting_key, is_enabled, interval_value, interval_unit, retention_mode, last_run)
             VALUES 
@@ -54,7 +53,6 @@ export const ensureCleanupSettingsTable = async () => {
     }
 };
 
-// Eksekusi penghapusan data untuk satu kategori ('system_logs' atau 'incident_history')
 export const performCleanupByKey = async (settingKey, retentionMode, intervalSec, sourceLabel = 'AUTO') => {
     let deletedCount = 0;
 
@@ -79,13 +77,11 @@ export const performCleanupByKey = async (settingKey, retentionMode, intervalSec
             `[${getWibTimeStr()}] [CRON CLEANUP LOG] (${sourceLabel}) Pembersihan system_logs selesai: ${deletedCount} baris dihapus (mode=${retentionMode}).`
         );
     } else if (settingKey === 'incident_history') {
-        // MENGGUNAKAN TRANSAKSI ACID UNTUK MULTI-TABLE DELETE
         const conn = await db.getConnection();
         await conn.beginTransaction(); 
-        
+
         try {
             if (retentionMode === 'ALL') {
-                // Hapus handler untuk tiket yang sudah selesai
                 await conn.query(`
                     DELETE ah FROM alert_handlers ah
                     INNER JOIN active_alerts aa ON ah.alert_id = aa.id
@@ -115,20 +111,19 @@ export const performCleanupByKey = async (settingKey, retentionMode, intervalSec
                 deletedCount = resAlerts.affectedRows || 0;
             }
 
-            // Bersihkan baris handler yatim jika ada
             await conn.query(`
                 DELETE ah FROM alert_handlers ah
                 LEFT JOIN active_alerts aa ON ah.alert_id = aa.id
                 WHERE aa.id IS NULL
             `);
 
-            await conn.commit(); // Eksekusi permanen penghapusan jika tidak ada error
+            await conn.commit();
         } catch (err) {
-            await conn.rollback(); // Batalkan semua penghapusan jika ada satu kueri yang gagal
+            await conn.rollback();
             console.error('[CRON CLEANUP ERROR] Transaksi pembersihan riwayat dibatalkan:', err.message);
             throw err;
         } finally {
-            conn.release(); // Kembalikan koneksi ke pool
+            conn.release();
         }
 
         await db.query(
@@ -144,7 +139,6 @@ export const performCleanupByKey = async (settingKey, retentionMode, intervalSec
     return deletedCount;
 };
 
-// Dipanggil secara berkala oleh Monitoring Daemon untuk mengecek apakah jadwal cron sudah waktunya jalan
 export const executeScheduledCleanupIfDue = async () => {
     try {
         await ensureCleanupSettingsTable();
@@ -173,7 +167,6 @@ export const executeScheduledCleanupIfDue = async () => {
     }
 };
 
-// GET /api/settings/cleanup
 export const getCleanupSettings = async (req, res) => {
     if (!req.user || req.user.role !== 'Admin') {
         return res.status(403).json({
@@ -238,7 +231,6 @@ export const getCleanupSettings = async (req, res) => {
     }
 };
 
-// PUT /api/settings/cleanup
 export const saveCleanupSettings = async (req, res) => {
     if (!req.user || req.user.role !== 'Admin') {
         return res.status(403).json({
@@ -294,7 +286,6 @@ export const saveCleanupSettings = async (req, res) => {
     }
 };
 
-// POST /api/settings/cleanup/run
 export const runManualCleanup = async (req, res) => {
     if (!req.user || req.user.role !== 'Admin') {
         return res.status(403).json({

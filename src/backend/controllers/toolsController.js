@@ -2,31 +2,17 @@ import { spawn, exec } from 'child_process';
 import { isIPv6 } from 'net';
 import { logSystemEvent } from './systemLogController.js';
 
-// ------------------------------------------------------------------
-// CATATAN SERVER SETUP:
-// Fitur Network Tools membutuhkan `ping`, `traceroute`, dan `nmap` di server backend:
-// - Alpine Linux (Dockerfile `node:22-alpine`):
-//     RUN apk add --no-cache iputils traceroute nmap
-// - Debian / Ubuntu (Bare-metal / VM):
-//     sudo apt update && sudo apt install iputils-ping traceroute nmap -y
-// ------------------------------------------------------------------
-
 const LOG_SOURCE = 'NETWORK TOOLS';
 
-// Mengizinkan format IPv4, Domain, dan IPv6 (termasuk prefix IPv6/IPv4 seperti /64)
 const TARGET_REGEX = /^[a-zA-Z0-9.:-]+(?:\/[0-9]{1,3})?$/;
 const MAX_TARGET_LENGTH = 253;
 const TOOL_TIMEOUT_MS = 120 * 1000;
-const IPSCAN_TIMEOUT_MS = 5 * 60 * 1000; // scan subnet besar (mis. /16) butuh waktu lebih lama
+const IPSCAN_TIMEOUT_MS = 5 * 60 * 1000;
 const isWin = process.platform === 'win32';
 
-// Format IPv4 dengan prefix CIDR opsional, mis. "192.168.1.0/24" atau "192.168.1.10"
 const IPSCAN_REGEX = /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$/;
-const IPSCAN_MIN_PREFIX = 16; // batasi ukuran scan agar tidak memindai ratusan ribu host
+const IPSCAN_MIN_PREFIX = 16;
 
-// ==================================================================
-// HELPER AUDIT LOGGING KE TABEL `system_logs`
-// ==================================================================
 const sanitizeLogInput = (raw) => {
     if (raw === undefined || raw === null || raw === '') return '<kosong>';
     return String(raw).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 80);
@@ -45,7 +31,6 @@ const buildActorContext = (req, channel = 'Web') => {
 
 const formatDurationSec = (startMs) => ((Date.now() - startMs) / 1000).toFixed(1);
 
-// Ekstrak ringkasan 1 baris dari output terminal untuk dicatat di system_logs
 const summarizeToolOutput = (toolKey, rawOutput = '') => {
     if (!rawOutput) return '';
 
@@ -73,14 +58,9 @@ const summarizeToolOutput = (toolKey, rawOutput = '') => {
 };
 
 const recordToolLog = (level, message) => {
-    // Non-blocking agar tidak menahan proses streaming maupun respons API
     void logSystemEvent(level, LOG_SOURCE, message);
 };
 
-// ==================================================================
-// HELPER VALIDASI INPUT TARGET
-// ==================================================================
-// Validasi target host/IP/domain untuk Ping & Traceroute (IPv4, IPv6, atau Domain)
 const getValidHostTarget = (req) => {
     const target = typeof req.body?.target === 'string' ? req.body.target.trim() : '';
     if (!target || target.length > MAX_TARGET_LENGTH || !TARGET_REGEX.test(target)) return null;
@@ -90,16 +70,13 @@ const getValidHostTarget = (req) => {
         return target;
     }
 
-    // Jika mengandung titik dua (colon) tapi bukan IPv6 valid, tolak
     if (target.includes(':')) return null;
 
-    // Untuk domain/IPv4, pastikan tidak diawali atau diakhiri titik/strip
     if (/^[.-]|[.-]$/.test(baseHost)) return null;
 
     return target;
 };
 
-// Validasi format + rentang nilai untuk IP Scan (IPv4 prefix /16 s.d. /32, IPv6 prefix /1 s.d. /128)
 const getValidScanTarget = (req) => {
     const target = typeof req.body?.target === 'string' ? req.body.target.trim() : '';
     if (!target || target.length > MAX_TARGET_LENGTH || !TARGET_REGEX.test(target)) return null;
@@ -157,9 +134,6 @@ const rejectInvalidScan = (req, res, channel) => {
     });
 };
 
-// ==================================================================
-// 1. HELPER & CONTROLLER WEB (REAL-TIME CHUNKED STREAMING VIA SPAWN)
-// ==================================================================
 const streamCommand = (req, res, {
     toolKey,
     toolLabel,
@@ -179,13 +153,12 @@ const streamCommand = (req, res, {
     let abortedByClient = false;
     let hasLoggedEnd = false;
 
-    // Rekam log mulai eksekusi
     recordToolLog('INFO', `Memulai eksekusi ${toolLabel} ke target '${target}' (${cmdString}). ${actorCtx}`);
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
     res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('X-Accel-Buffering', 'no'); // matikan buffering jika di belakang nginx
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
     const child = spawn(command, args);
@@ -205,7 +178,6 @@ const streamCommand = (req, res, {
     child.stdout.on('data', appendChunk);
     child.stderr.on('data', appendChunk);
 
-    // Mis. perintah tidak terpasang di OS (ENOENT)
     child.on('error', (err) => {
         isProcessDone = true;
         clearTimeout(timer);
@@ -264,7 +236,6 @@ const streamCommand = (req, res, {
         }
     });
 
-    // Hentikan proses jika pengguna menekan tombol Stop atau menutup tab sebelum proses selesai
     res.on('close', () => {
         if (!isProcessDone && !timedOut) {
             abortedByClient = true;
@@ -283,12 +254,11 @@ const streamCommand = (req, res, {
     });
 };
 
-// POST /api/tools/ping (Web Streaming)
 export const runPing = (req, res) => {
     const target = getValidHostTarget(req);
     if (!target) return rejectInvalidHost(req, res, 'Ping', 'Web');
 
-    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const isV6 = isIPv6(target.split('/')[0]);
     const args = isV6
         ? (isWin ? ['-6', '-n', '4', target] : ['-6', '-c', '4', target])
         : [isWin ? '-n' : '-c', '10', target];
@@ -302,12 +272,11 @@ export const runPing = (req, res) => {
     });
 };
 
-// POST /api/tools/traceroute (Web Streaming)
 export const runTraceroute = (req, res) => {
     const target = getValidHostTarget(req);
     if (!target) return rejectInvalidHost(req, res, 'Traceroute', 'Web');
 
-    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const isV6 = isIPv6(target.split('/')[0]);
     const args = isV6 ? ['-6', target] : [target];
 
     streamCommand(req, res, {
@@ -319,12 +288,11 @@ export const runTraceroute = (req, res) => {
     });
 };
 
-// POST /api/tools/ipscan (Web Streaming)
 export const runIpScan = (req, res) => {
     const target = getValidScanTarget(req);
     if (!target) return rejectInvalidScan(req, res, 'Web');
 
-    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const isV6 = isIPv6(target.split('/')[0]);
     const args = isV6 ? ['-6', '-sn', target] : ['-sn', target];
 
     streamCommand(req, res, {
@@ -338,9 +306,6 @@ export const runIpScan = (req, res) => {
     });
 };
 
-// ==================================================================
-// 2. HELPER & CONTROLLER MOBILE (FINAL JSON RESPONSE VIA EXEC)
-// ==================================================================
 const execCommandJson = (req, res, {
     toolKey,
     toolLabel,
@@ -352,7 +317,6 @@ const execCommandJson = (req, res, {
     const startMs = Date.now();
     const actorCtx = buildActorContext(req, 'Mobile');
 
-    // Rekam log mulai eksekusi dari aplikasi Mobile
     recordToolLog('INFO', `Memulai eksekusi ${toolLabel} ke target '${target}' (${command}). ${actorCtx}`);
 
     exec(command, { timeout: timeoutMs, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
@@ -410,12 +374,11 @@ const execCommandJson = (req, res, {
     });
 };
 
-// POST /api/mobile/tools/ping & /api/mobile/v1/tools/ping
 export const runMobilePing = (req, res) => {
     const target = getValidHostTarget(req);
     if (!target) return rejectInvalidHost(req, res, 'Ping', 'Mobile');
 
-    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const isV6 = isIPv6(target.split('/')[0]);
     const cmd = isV6
         ? (isWin ? `ping -6 -n 4 ${target}` : `ping -6 -c 4 ${target}`)
         : (isWin ? `ping -n 10 ${target}` : `ping -c 10 ${target}`);
@@ -429,12 +392,11 @@ export const runMobilePing = (req, res) => {
     });
 };
 
-// POST /api/mobile/tools/traceroute & /api/mobile/v1/tools/traceroute
 export const runMobileTraceroute = (req, res) => {
     const target = getValidHostTarget(req);
     if (!target) return rejectInvalidHost(req, res, 'Traceroute', 'Mobile');
 
-    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const isV6 = isIPv6(target.split('/')[0]);
     const cmd = isWin
         ? (isV6 ? `tracert -6 ${target}` : `tracert ${target}`)
         : (isV6 ? `traceroute -6 ${target}` : `traceroute ${target}`);
@@ -448,12 +410,11 @@ export const runMobileTraceroute = (req, res) => {
     });
 };
 
-// POST /api/mobile/tools/ipscan & /api/mobile/v1/tools/ipscan
 export const runMobileIpScan = (req, res) => {
     const target = getValidScanTarget(req);
     if (!target) return rejectInvalidScan(req, res, 'Mobile');
 
-    const isV6 = isIPv6(target.split('/')[0]); // Cek IP asli tanpa prefix
+    const isV6 = isIPv6(target.split('/')[0]);
     const cmd = isV6 ? `nmap -6 -sn ${target}` : `nmap -sn ${target}`;
 
     execCommandJson(req, res, {

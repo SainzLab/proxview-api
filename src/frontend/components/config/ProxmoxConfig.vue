@@ -1,7 +1,6 @@
 <template>
   <main class="bg-[#f8f9fa] min-h-screen font-sans p-8 pb-12 overflow-x-hidden relative animate-fade-in">
-    
-    <!-- Header Halaman -->
+
     <div class="flex justify-between items-end mb-6">
       <div>
         <h2 class="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-3">
@@ -19,7 +18,6 @@
       </div>
     </div>
 
-    <!-- Info Banner -->
     <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-6 flex gap-4 items-start shadow-sm">
       <div class="w-10 h-10 rounded-full bg-blue-100/50 border border-blue-200/50 flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
         <i class="ph-fill ph-info text-xl"></i>
@@ -36,7 +34,6 @@
       </div>
     </div>
 
-    <!-- Data Table -->
     <div class="bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
       <table class="w-full text-left border-collapse">
         <thead>
@@ -61,18 +58,15 @@
               <p class="font-medium text-sm">Belum ada server Proxmox yang ditambahkan.</p>
             </td>
           </tr>
-          
-          <!-- MENGGUNAKAN <template> UNTUK ACCORDION -->
+
           <template v-else v-for="node in proxmoxNodes" :key="node.id">
-            
-            <!-- Baris Utama (Bisa di-klik) -->
+
             <tr 
               @click="toggleExpanded(node)" 
               class="border-b border-slate-100 transition cursor-pointer group"
               :class="expandedNodeId === node.id ? 'bg-slate-50/80' : 'hover:bg-slate-50'"
             >
-              
-              <!-- Label Server -->
+
               <td class="px-6 py-4">
                 <p class="font-bold text-slate-900 group-hover:text-slate-700 transition flex items-center gap-2">
                   {{ node.name }}
@@ -81,22 +75,19 @@
                 </p>
                 <p class="text-[10px] text-slate-500 font-medium mt-0.5" v-if="node.pveVersion">PVE Version: <span class="font-mono tracking-tight font-bold text-slate-700">{{ node.pveVersion }}</span></p>
               </td>
-              
-              <!-- Host URL -->
+
               <td class="px-6 py-4 text-slate-700 font-mono tracking-tight font-bold text-xs">
                 <a :href="node.hostUrl" target="_blank" @click.stop class="hover:text-blue-600 hover:underline underline-offset-2 transition flex items-center gap-1.5 w-fit">
                   {{ node.hostUrl }} <i class="ph-bold ph-arrow-up-right text-[10px]"></i>
                 </a>
               </td>
 
-              <!-- Token ID -->
               <td class="px-6 py-4">
                 <span class="inline-block bg-slate-50 border border-slate-200 text-slate-600 font-mono tracking-tight font-bold text-[11px] px-2.5 py-1 rounded-md shadow-inner">
                   {{ node.tokenId }}
                 </span>
               </td>
-              
-              <!-- Status Koneksi -->
+
               <td class="px-6 py-4">
                 <div v-if="node.isTesting" class="flex items-center gap-2 text-slate-500 text-xs font-medium">
                   <i class="ph-bold ph-spinner animate-spin text-base text-slate-400"></i> Menguji...
@@ -118,8 +109,7 @@
                   </span>
                 </div>
               </td>
-              
-              <!-- Aksi (@click.stop Mencegah row accordion terbuka) -->
+
               <td class="px-6 py-4 text-right" @click.stop>
                 <div class="flex items-center justify-end gap-1.5 text-slate-400">
                   <button @click="testConnection(node)" class="p-1.5 rounded-md hover:bg-emerald-50 hover:text-emerald-600 transition" title="Uji Koneksi API" :disabled="node.isTesting">
@@ -135,26 +125,22 @@
               </td>
             </tr>
 
-            <!-- Baris Detail (Hanya Di-render saat Node di-klik) -->
             <tr v-if="expandedNodeId === node.id">
               <td colspan="5" class="p-0 border-b border-slate-100 bg-slate-50/50">
                 <div class="p-6 animate-fade-in shadow-inner">
-                  
-                  <!-- Loader saat Fetching API -->
+
                   <div v-if="isLoadingDetails" class="flex flex-col items-center justify-center py-10 text-slate-500">
                     <i class="ph-bold ph-spinner animate-spin text-2xl text-slate-400 mb-2 inline-block"></i>
                     <p class="text-xs font-medium">Menarik data Resources dari node <span class="font-bold text-slate-900">{{ node.name }}</span>...</p>
                   </div>
-                  
-                  <!-- Data Resources (Jika tidak UP) -->
+
                   <div v-else-if="node.status !== 'TERHUBUNG'" class="flex flex-col items-center justify-center py-8 text-slate-500">
                     <i class="ph-duotone ph-plugs text-4xl mb-2 text-slate-400"></i>
                     <p class="text-sm font-medium">Silakan 'Uji Koneksi' terlebih dahulu agar sistem dapat menarik data resource.</p>
                   </div>
 
                   <div v-else class="grid grid-cols-3 gap-6">
-                    
-                    <!-- VM Card -->
+
                     <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
                       <h4 class="text-[11px] font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
                         <span class="flex items-center gap-2"><i class="ph-fill ph-desktop text-blue-500 text-base"></i> Virtual Machines</span>
@@ -172,7 +158,6 @@
                       </ul>
                     </div>
 
-                    <!-- LXC Card -->
                     <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
                       <h4 class="text-[11px] font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
                         <span class="flex items-center gap-2"><i class="ph-fill ph-cube text-purple-500 text-base"></i> LXC Containers</span>
@@ -190,7 +175,6 @@
                       </ul>
                     </div>
 
-                    <!-- Storage Card -->
                     <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm">
                       <h4 class="text-[11px] font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
                         <span class="flex items-center gap-2"><i class="ph-fill ph-hard-drive text-amber-500 text-base"></i> Data Storages</span>
@@ -221,13 +205,10 @@
       </table>
     </div>
 
-    <!-- ========================================== -->
-    <!-- MODAL FORM PROXMOX (TAMBAH / EDIT)         -->
-    <!-- ========================================== -->
     <Teleport to="body">
       <div v-if="showModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeModal">
         <div class="bg-white border border-slate-200/80 shadow-xl rounded-2xl w-full max-w-xl overflow-hidden transform transition-all relative">
-          
+
           <div class="flex justify-between items-center p-6 border-b border-slate-200/80 bg-slate-50/50">
             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
               <i class="ph-bold" :class="isEditMode ? 'ph-pencil-simple text-blue-500' : 'ph-plus-circle text-emerald-500'"></i> 
@@ -239,7 +220,6 @@
           </div>
 
           <form @submit.prevent="saveNode" class="p-6 space-y-5">
-            <!-- Input Nama Label -->
             <div>
               <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Label / Nama Server</label>
               <div class="relative">
@@ -254,7 +234,6 @@
               </div>
             </div>
 
-            <!-- Input Host URL -->
             <div>
               <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Proxmox Host URL</label>
               <div class="relative">
@@ -271,7 +250,6 @@
             </div>
 
             <div class="grid grid-cols-2 gap-4">
-              <!-- Input Token ID -->
               <div>
                 <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">API Token ID</label>
                 <div class="relative">
@@ -286,7 +264,6 @@
                 </div>
               </div>
 
-              <!-- Input Token Secret -->
               <div>
                 <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">API Token Secret</label>
                 <div class="relative">
@@ -319,9 +296,6 @@
       </div>
     </Teleport>
 
-    <!-- ========================================== -->
-    <!-- MODAL KONFIRMASI HAPUS                     -->
-    <!-- ========================================== -->
     <Teleport to="body">
       <div v-if="showDeleteModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeDeleteModal">
         <div class="bg-white border border-slate-200/80 shadow-xl rounded-2xl w-full max-w-md overflow-hidden transform transition-all relative">
@@ -354,9 +328,6 @@
       </div>
     </Teleport>
 
-    <!-- ========================================== -->
-    <!-- TOAST NOTIFICATION                         -->
-    <!-- ========================================== -->
     <ToastNotification
       :show="toast.show"
       :type="toast.type"
@@ -375,12 +346,10 @@ import ToastNotification from '@/components/common/ToastNotification.vue';
 const proxmoxNodes = ref([]);
 const isLoading = ref(true);
 
-// State Accordion
 const expandedNodeId = ref(null);
 const isLoadingDetails = ref(false);
 const nodeDetails = ref({ vms: [], lxcs: [], storages: [] });
 
-// State Modal
 const showModal = ref(false);
 const isSaving = ref(false);
 const isEditMode = ref(false);
@@ -389,7 +358,6 @@ const showSecret = ref(false);
 
 const form = ref({ name: '', hostUrl: '', tokenId: '', tokenSecret: '' });
 
-// State Delete Modal
 const showDeleteModal = ref(false);
 const nodeToDelete = ref(null);
 const isDeleting = ref(false);
@@ -403,9 +371,6 @@ const showToast = (type, title, message) => {
   toastTimer = setTimeout(() => { toast.value.show = false; }, 5000);
 };
 
-// ==========================================
-// API CALLS
-// ==========================================
 const fetchNodes = async () => {
   isLoading.value = true;
   try {
@@ -473,7 +438,7 @@ const testConnection = async (node) => {
   try {
     const res = await fetch(`/api/proxmox/${node.id}/test`, { method: 'POST' });
     const data = await res.json();
-    
+
     if (data.success) {
       node.status = 'TERHUBUNG';
       node.latency = data.latency;
@@ -493,9 +458,6 @@ const testConnection = async (node) => {
   }
 };
 
-// ==========================================
-// LAZY LOAD ACCORDION (VM, LXC, STORAGE)
-// ==========================================
 const toggleExpanded = (node) => {
   if (expandedNodeId.value === node.id) {
     expandedNodeId.value = null;
@@ -521,9 +483,6 @@ const fetchNodeResources = async (nodeId) => {
   }
 };
 
-// ==========================================
-// MODAL CONTROLS
-// ==========================================
 const openAddModal = () => {
   isEditMode.value = false;
   form.value = { name: '', hostUrl: '', tokenId: '', tokenSecret: '' };

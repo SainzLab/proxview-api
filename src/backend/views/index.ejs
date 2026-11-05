@@ -4,17 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ProxView</title>
-    
-    <!-- Import Font Inter (Sesuai panduan tipografi Light Theme) -->
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Tailwind Config untuk Tema Terang & Gelap -->
     <script>
-      if (localStorage.getItem('proxview_theme') === 'dark') {
+if (localStorage.getItem('proxview_theme') === 'dark') {
         document.documentElement.classList.add('dark');
       }
       tailwind.config = {
@@ -22,18 +19,15 @@
         theme: {
           extend: {
             fontFamily: {
-              // Menjadikan Inter sebagai font default untuk class font-sans
               sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
             }
           }
         }
       }
-    </script>
+</script>
 
-    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
-    <!-- Chart.js -->
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <% if (isProd && typeof viteAssets !== 'undefined' && viteAssets.css) { %>
@@ -42,13 +36,10 @@
         <% }); %>
     <% } %>
 </head>
-<!-- UBAH BODY CLASS: Background terang, teks default hitam/gelap, dan warna seleksi teks hijau pastel -->
 <body class="bg-[#f8f9fa] text-slate-900 font-sans antialiased selection:bg-emerald-100 selection:text-emerald-900">
-    
-    <!-- Vue Root Element -->
+
     <div id="app"></div>
 
-    <!-- Script Injection (Development vs Production) -->
     <% if (isProd) { %>
         <% if (typeof viteAssets !== 'undefined' && viteAssets.js) { %>
             <script type="module" src="/dist/<%= viteAssets.js %>"></script>
@@ -56,7 +47,6 @@
             <script type="module" src="/dist/main.js"></script>
         <% } %>
     <% } else { %>
-        <!-- Di mode development, connect ke Vite dev server -->
         <script type="module" src="http://localhost:5173/@vite/client"></script>
         <script type="module" src="http://localhost:5173/src/frontend/main.js"></script>
     <% } %>

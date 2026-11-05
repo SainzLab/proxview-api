@@ -1,12 +1,9 @@
 <template>
   <div class="animate-fade-in relative min-h-[80vh] font-sans">
-    
-    <!-- Action Bar Child -->
+
     <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-6">
-      
-      <!-- Sisi Kiri: Search & Filter Select Box -->
+
       <div class="flex items-center gap-2.5 flex-1 max-w-lg">
-        <!-- Search Input -->
         <div class="relative flex-1 h-[42px]">
           <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm"></i>
           <input 
@@ -20,7 +17,6 @@
           </button>
         </div>
 
-        <!-- Filter Tipe Target Select Box -->
         <div class="relative h-[42px] min-w-[160px]">
           <select 
             v-model="filterType" 
@@ -37,9 +33,7 @@
         </div>
       </div>
 
-      <!-- Sisi Kanan: Preset Dropdown Menu & Tombol Aksi -->
       <div class="flex items-center gap-2.5 shrink-0 justify-end">
-        <!-- Preset Ambang Batas Dropdown Menu -->
         <div class="relative" ref="presetDropdownRef">
           <button 
             type="button" 
@@ -52,7 +46,6 @@
             <i class="ph-bold ph-caret-down text-xs transition-transform duration-200 text-slate-400" :class="showPresetMenu ? 'rotate-180' : ''"></i>
           </button>
 
-          <!-- Dropdown Menu Item -->
           <div 
             v-if="showPresetMenu" 
             class="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200/80 rounded-xl shadow-xl py-1.5 z-50 overflow-hidden animate-fade-in font-sans"
@@ -103,7 +96,6 @@
           </div>
         </div>
 
-        <!-- Tambah Target Button -->
         <button 
           @click="openAddModal" 
           class="px-3.5 h-[42px] bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 rounded-lg flex items-center gap-2 text-xs font-semibold transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] whitespace-nowrap"
@@ -111,7 +103,6 @@
           <i class="ph-bold ph-plus text-sm"></i> Tambah Target
         </button>
 
-        <!-- Batal Button -->
         <button 
           v-if="hasUnsavedChanges && !isSaving" 
           @click="discardChanges" 
@@ -120,7 +111,6 @@
           Batal
         </button>
 
-        <!-- Simpan Button -->
         <button 
           @click="saveChanges" 
           :disabled="!hasUnsavedChanges || isSaving" 
@@ -134,13 +124,11 @@
 
     </div>
 
-    <!-- State Loading -->
     <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 bg-white border border-slate-200/80 rounded-xl shadow-sm">
       <i class="ph-bold ph-spinner animate-spin text-2xl text-slate-400 mb-2 inline-block"></i>
       <p class="text-slate-500 font-medium text-xs">Memuat konfigurasi Proxmox...</p>
     </div>
 
-    <!-- State Kosong Pencarian / Filter -->
     <div v-else-if="filteredTargets.length === 0" class="flex flex-col items-center justify-center py-16 bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-slate-500">
       <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
         <i class="ph-bold ph-magnifying-glass text-xl"></i>
@@ -152,22 +140,19 @@
       </button>
     </div>
 
-    <!-- Grid Konfigurasi Per Target -->
     <div v-else class="columns-1 xl:columns-2 gap-6">
-      
+
       <div 
         v-for="target in filteredTargets" 
         :key="target.id" 
         class="bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-visible flex flex-col transition-all hover:border-slate-300 hover:shadow-md break-inside-avoid mb-6 w-full"
       >
-        
-        <!-- Target Header -->
+
         <div class="px-6 py-4 bg-slate-50/80 border-b border-slate-200/80 flex justify-between items-center rounded-t-xl">
           <div class="flex items-center gap-3">
             <div>
               <h3 class="text-slate-900 font-bold flex items-center gap-2 text-base tracking-tight">
                 {{ target.name }}
-                <!-- Badge Tipe Pastel -->
                 <span 
                   class="px-2 py-0.5 rounded-md text-[9px] uppercase font-bold tracking-wider border" 
                   :class="target.type === 'NODE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : (target.type === 'VM' ? 'bg-blue-50 text-blue-700 border-blue-200/60' : 'bg-purple-50 text-purple-700 border-purple-200/60')"
@@ -180,10 +165,8 @@
               </p>
             </div>
           </div>
-          
-          <!-- Actions & Dropdown Menu Per Target -->
+
           <div class="flex items-center gap-1.5">
-            <!-- Dropdown Menu Opsi Preset Card -->
             <div class="relative card-menu-container">
               <button 
                 type="button" 
@@ -193,8 +176,7 @@
               >
                 <i class="ph-bold ph-dots-three-vertical text-lg"></i>
               </button>
-              
-              <!-- Dropdown Menu Popup -->
+
               <div 
                 v-if="activeCardMenuId === target.id" 
                 class="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200/90 rounded-xl shadow-lg py-1 z-30 animate-fade-in font-sans"
@@ -234,7 +216,6 @@
               </div>
             </div>
 
-            <!-- Tombol Hapus Cepat -->
             <button @click="removeTarget(target)" class="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition" title="Hapus Notifikasi">
               <i class="ph-bold ph-trash text-lg"></i>
             </button>
@@ -242,7 +223,6 @@
         </div>
 
         <div class="p-6 space-y-6 flex-1">
-          <!-- CPU Configuration -->
           <div>
             <div class="flex justify-between items-end mb-3">
               <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -263,7 +243,6 @@
             </div>
           </div>
 
-          <!-- RAM Configuration -->
           <div>
             <div class="flex justify-between items-end mb-3">
               <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -284,7 +263,6 @@
             </div>
           </div>
 
-          <!-- IO DELAY (Hanya untuk Node) -->
           <div v-if="target.type === 'NODE'">
             <div class="flex justify-between items-end mb-3">
               <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -305,7 +283,6 @@
             </div>
           </div>
 
-          <!-- Aturan Notifikasi -->
           <div class="pt-5 border-t border-slate-100">
             <div class="flex justify-between items-end mb-4">
               <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -322,9 +299,8 @@
                 <span class="text-[9px] font-medium text-slate-500">detik</span>
               </div>
             </div>
-            
+
             <div class="space-y-3">
-              <!-- Warning Rule -->
               <div class="flex items-center justify-between bg-amber-50/30 p-3 rounded-xl border border-amber-200/60 shadow-sm">
                 <div class="flex items-center gap-2 w-1/3">
                   <i class="ph-fill ph-warning text-amber-500 text-base"></i>
@@ -354,8 +330,7 @@
                   </div>
                 </div>
               </div>
-              
-              <!-- Critical Rule -->
+
               <div class="flex items-center justify-between bg-orange-50/30 p-3 rounded-xl border border-orange-200/60 shadow-sm">
                 <div class="flex items-center gap-2 w-1/3">
                   <i class="ph-fill ph-warning-circle text-orange-500 text-base"></i>
@@ -385,8 +360,7 @@
                   </div>
                 </div>
               </div>
-              
-              <!-- Down Rule -->
+
               <div class="flex items-center justify-between bg-rose-50/30 p-3 rounded-xl border border-rose-200/60 shadow-sm">
                 <div class="flex items-center gap-2 w-1/3">
                   <i class="ph-bold ph-power text-rose-500 text-base"></i>
@@ -416,20 +390,17 @@
                   </div>
                 </div>
               </div>
-              
+
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- MODAL PILIH TARGET PROXMOX                 -->
-    <!-- ========================================== -->
     <Teleport to="body">
       <div v-if="showAddModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeAddModal">
         <div class="bg-white border border-slate-200/80 shadow-xl rounded-2xl w-full max-w-md overflow-hidden transform transition-all">
-          
+
           <div class="flex justify-between items-center p-6 border-b border-slate-200/80 bg-slate-50/50">
             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
               <i class="ph-bold ph-plus-circle text-emerald-500"></i> Aktifkan Notifikasi Proxmox
@@ -438,7 +409,7 @@
               <i class="ph-bold ph-x text-lg"></i>
             </button>
           </div>
-          
+
           <div class="p-6 space-y-4">
             <div>
               <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Pilih Target Dari Katalog</label>
@@ -475,14 +446,11 @@
               </button>
             </div>
           </div>
-          
+
         </div>
       </div>
     </Teleport>
 
-    <!-- ========================================== -->
-    <!-- MODAL KONFIRMASI (BATAL / HAPUS TARGET)    -->
-    <!-- ========================================== -->
     <Teleport to="body">
       <div v-if="confirmModal.show" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="closeConfirmModal">
         <div class="bg-white border border-slate-200/80 shadow-xl rounded-2xl w-full max-w-sm overflow-hidden text-center p-6 transform transition-all">
@@ -512,9 +480,6 @@
       </div>
     </Teleport>
 
-    <!-- ========================================== -->
-    <!-- CUSTOM TOAST NOTIFICATION                  -->
-    <!-- ========================================== -->
     <ToastNotification
       :show="toast.show"
       :type="toast.type"
@@ -531,7 +496,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import ToastNotification from '@/components/common/ToastNotification.vue';
 
 const monitoredTargets = ref([]);
-const liveCatalog = ref([]); // Menampung hasil scrape dari Live API
+const liveCatalog = ref([]);
 const availableTargets = ref([]);
 const selectedTargetJSON = ref('');
 
@@ -547,7 +512,6 @@ const isLoading = ref(true);
 const isFetchingCatalog = ref(false);
 const showAddModal = ref(false);
 
-// === COMPUTED FILTERED TARGETS ===
 const filteredTargets = computed(() => {
   return monitoredTargets.value.filter(target => {
     const query = searchQuery.value.trim().toLowerCase();
@@ -582,7 +546,6 @@ const executeConfirm = () => {
   closeConfirmModal();
 };
 
-// === 1. FETCH TARGET YANG SUDAH DIAKTIFKAN DARI DATABASE ===
 const fetchThresholds = async () => {
   isLoading.value = true;
   try {
@@ -599,20 +562,18 @@ const fetchThresholds = async () => {
   }
 };
 
-// === 2. FETCH LIVE DATA DARI SERVER PROXMOX UNTUK KATALOG ===
 const fetchLiveCatalog = async () => {
   isFetchingCatalog.value = true;
   liveCatalog.value = [];
-  
+
   try {
     const resNodes = await fetch('/api/proxmox');
     const nodesData = await resNodes.json();
-    
+
     if (nodesData.success) {
       for (const server of nodesData.data) {
         if (server.status === 'TERHUBUNG') {
-          
-          // Ambil daftar Node Fisik
+
           try {
             const resStatus = await fetch(`/api/proxmox/${server.id}/status`);
             const statusJson = await resStatus.json();
@@ -625,8 +586,7 @@ const fetchLiveCatalog = async () => {
               });
             }
           } catch (e) {}
-          
-          // Ambil daftar VM dan LXC
+
           try {
             const resResources = await fetch(`/api/proxmox/${server.id}/resources`);
             const resJson = await resResources.json();
@@ -657,10 +617,8 @@ const fetchLiveCatalog = async () => {
   }
 };
 
-// Menyaring Live Catalog agar tidak menampilkan yang sudah di-monitor
 const filterAvailableTargets = () => {
   availableTargets.value = liveCatalog.value.filter(catItem => {
-    // Cek apakah item ini sudah ada di dalam monitoredTargets
     return !monitoredTargets.value.some(monItem => 
       monItem.type === catItem.type && 
       monItem.node === catItem.node && 
@@ -669,11 +627,10 @@ const filterAvailableTargets = () => {
   });
 };
 
-// === 3. FUNGSI MODAL DAN UI ===
 const openAddModal = async () => {
   selectedTargetJSON.value = '';
   showAddModal.value = true; 
-  await fetchLiveCatalog(); // Tarik data live setiap modal dibuka
+  await fetchLiveCatalog();
 };
 
 const closeAddModal = () => { showAddModal.value = false; };
@@ -681,9 +638,9 @@ const closeAddModal = () => { showAddModal.value = false; };
 const submitNewTarget = () => {
   if (!selectedTargetJSON.value) return;
   const targetData = JSON.parse(selectedTargetJSON.value);
-  
+
   monitoredTargets.value.push({
-    id: `temp_${Date.now()}`, // ID sementara sebelum disave ke DB
+    id: `temp_${Date.now()}`,
     vmid: targetData.vmid,
     name: targetData.name,
     type: targetData.type,
@@ -693,28 +650,27 @@ const submitNewTarget = () => {
     ioDelay: { warning: 5, critical: 15 }, 
     alertSettings: { checkInterval: 10, warning: { maxCount: 1, type: 'Pesan' }, critical: { maxCount: 3, type: 'Call' }, down: { maxCount: 5, type: 'Call' } }
   });
-  
+
   triggerChange();
   closeAddModal();
 };
 
-// === 4. SAVE & MISC ===
 const saveChanges = async () => {
   if (!hasUnsavedChanges.value) return;
   isSaving.value = true;
-  
+
   try {
     const res = await fetch('/api/thresholds/proxmox', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ targets: monitoredTargets.value })
     });
-    
+
     const data = await res.json();
     if (data.success) {
       hasUnsavedChanges.value = false;
       showToast('success', 'Konfigurasi Disimpan', 'Konfigurasi threshold Proxmox berhasil disimpan!');
-      fetchThresholds(); // Reload dari DB agar dapat ID asli
+      fetchThresholds();
     } else {
       showToast('error', 'Gagal Menyimpan', data.message || 'Gagal menyimpan konfigurasi threshold Proxmox.');
     }
@@ -755,7 +711,6 @@ const removeTarget = (target) => {
   };
 };
 
-// === PRESET ACTIONS (DROPDOWN MENU) ===
 const applyPreset = (presetKey) => {
   showPresetMenu.value = false;
   if (!monitoredTargets.value || monitoredTargets.value.length === 0) {

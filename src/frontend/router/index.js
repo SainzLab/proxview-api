@@ -30,20 +30,16 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
     const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
     const lastActivity = localStorage.getItem('lastActivity');
-    
-    // Set batas waktu idle (contoh: 1 menit = 60000 ms)
+
     const MAX_IDLE_TIME = 1160 * 1000; 
 
-    // Cek apakah user diam lebih dari batas waktu saat mencoba refresh/pindah halaman
     if (isAuthenticated && lastActivity && (Date.now() - parseInt(lastActivity)) > MAX_IDLE_TIME) {
-        // Hapus jejak sesi
         localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('user');
         localStorage.removeItem('lastActivity');
-        
-        // Panggil API logout backend untuk menghapus Cookie secara paksa
+
         fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-        
+
         if (to.path !== '/login') {
             return next('/login');
         }

@@ -1,7 +1,6 @@
 <template>
   <main class="bg-[#f8f9fa] min-h-screen font-sans p-8 pb-12 overflow-x-hidden relative animate-fade-in">
-    
-    <!-- Header Halaman & Toggle Tab -->
+
     <div class="flex justify-between items-end mb-6 pb-5">
       <div>
         <h2 class="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-3">
@@ -10,7 +9,6 @@
         <p class="text-slate-500 text-sm font-medium">Atur pemicu notifikasi alarm untuk infrastruktur Anda.</p>
       </div>
 
-      <!-- TOGGLE MODE BUTTON -->
       <div class="flex bg-slate-50 border border-slate-200/80 p-1 rounded-lg shadow-inner h-[42px] items-center shrink-0">
         <button 
           @click="activeTab = 'proxmox'" 
@@ -29,18 +27,17 @@
       </div>
     </div>
 
-    <!-- Render Komponen Berdasarkan Tab Aktif -->
     <transition name="fade" mode="out-in">
       <component :is="activeTab === 'proxmox' ? ThresholdProxmox : ThresholdNetwork" />
     </transition>
-    
+
   </main>
 </template>
 
 <script setup>
 import { ref } from 'vue';
-import ThresholdProxmox from '@/components/layout/ThresholdProxmox.vue'; // Sesuaikan path jika ditaruh di folder components
-import ThresholdNetwork from '@/components/layout/ThresholdIcmpTcp.vue';   // Sesuaikan path jika ditaruh di folder components
+import ThresholdProxmox from '@/components/layout/ThresholdProxmox.vue';
+import ThresholdNetwork from '@/components/layout/ThresholdIcmpTcp.vue';
 
 const activeTab = ref('proxmox');
 </script>

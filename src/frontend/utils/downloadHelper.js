@@ -1,10 +1,3 @@
-/**
- * Helper untuk mengunduh file binary (seperti PDF) dari endpoint API backend
- * dan memicu dialog unduhan di browser.
- * 
- * @param {string} url - URL endpoint API
- * @param {string} defaultFilename - Nama file cadangan jika tidak ada di header Content-Disposition
- */
 export const downloadFileFromApi = async (url, defaultFilename = 'dokumen.pdf') => {
   const response = await fetch(url, {
     method: 'GET',
@@ -17,12 +10,10 @@ export const downloadFileFromApi = async (url, defaultFilename = 'dokumen.pdf') 
       const errJson = await response.json();
       if (errJson && errJson.message) errorMsg = errJson.message;
     } catch (_) {
-      // Abaikan jika body bukan JSON
     }
     throw new Error(errorMsg);
   }
 
-  // Ambil nama file resmi dari header Content-Disposition jika tersedia
   let filename = defaultFilename;
   const disposition = response.headers.get('content-disposition');
   if (disposition && disposition.includes('filename=')) {

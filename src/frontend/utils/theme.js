@@ -37,7 +37,6 @@ watch(
     try {
       localStorage.setItem(STORAGE_KEY, val ? 'dark' : 'light');
     } catch (e) {
-      // Abaikan jika storage tidak tersedia
     }
   },
   { immediate: true }

@@ -1,10 +1,8 @@
 <template>
   <div class="flex md:hidden min-h-screen bg-[#f8f9fa] items-center justify-center p-6 relative overflow-hidden font-sans">
-    <!-- Efek Ambient -->
     <div class="absolute top-[-10%] left-[-10%] w-64 h-64 bg-rose-500/5 blur-[80px] rounded-full pointer-events-none"></div>
     <div class="absolute bottom-[-10%] right-[-10%] w-64 h-64 bg-blue-500/5 blur-[80px] rounded-full pointer-events-none"></div>
 
-    <!-- Mobile Restriction Card -->
     <div class="bg-white border border-slate-200/80 rounded-2xl p-8 max-w-sm w-full text-center shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative z-10">
       <div class="w-16 h-16 bg-blue-50 border border-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
         <i class="ph-bold ph-monitor text-3xl"></i>
@@ -26,8 +24,7 @@
   </div>
 
   <div class="hidden md:block relative font-sans">
-    
-    <!-- TOAST SUCCESS LOGIN -->
+
     <ToastNotification
       :show="showSuccessToast"
       type="success"
@@ -42,7 +39,6 @@
       </p>
     </ToastNotification>
 
-    <!-- TOAST LOGOUT -->
     <ToastNotification
       :show="showLogoutToast"
       type="logout"
@@ -51,7 +47,6 @@
       @close="showLogoutToast = false"
     />
 
-    <!-- TOAST NOTIFIKASI GLOBAL -->
     <ToastNotification
       :show="globalToast.show"
       :type="globalToast.type"
@@ -60,14 +55,12 @@
       @close="hideGlobalToast"
     />
 
-    <!-- MODAL POP-UP TIMEOUT (Custom Alert) -->
     <Teleport to="body">
       <div v-if="showTimeoutModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans">
         <div class="bg-white border border-slate-200/80 rounded-2xl p-8 max-w-sm w-full text-center shadow-xl relative overflow-hidden">
-          
-          <!-- Dekorasi Background Modal -->
+
           <div class="absolute -top-10 -right-10 w-32 h-32 bg-rose-50 rounded-full blur-[30px]"></div>
-          
+
           <div class="w-16 h-16 bg-rose-50 border border-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-5 relative z-10 shadow-sm">
             <i class="ph-fill ph-clock-countdown text-3xl"></i>
           </div>
@@ -82,10 +75,8 @@
       </div>
     </Teleport>
 
-    <!-- Router View -->
     <router-view v-if="$route.name === 'login'" />
 
-    <!-- Main Layout App Shell -->
     <div v-else class="min-h-screen flex text-slate-900 bg-[#f8f9fa]">
       <Sidebar />
       <div class="ml-64 flex-1 flex flex-col w-[calc(100%-16rem)]">
@@ -93,7 +84,7 @@
         <router-view />
       </div>
     </div>
-    
+
   </div>
 </template>
 
@@ -108,23 +99,16 @@ import { globalToast, hideGlobalToast } from '@/utils/toast.js';
 const route = useRoute();
 const router = useRouter();
 
-// ==========================================
-// STATE NOTIFIKASI TOAST
-// ==========================================
 const showSuccessToast = ref(false);
 const showLogoutToast = ref(false);
 const userName = ref('');
 const userRole = ref('');
 
-// ==========================================
-// FITUR AUTO-LOGOUT (INACTIVITY TIMEOUT)
-// ==========================================
 let timeoutTimer = null;
-const INACTIVITY_LIMIT = 300 * 1000; // 5 menit
+const INACTIVITY_LIMIT = 300 * 1000;
 const showTimeoutModal = ref(false);
 let isAutoLogout = false;
 
-// Dieksekusi secara real-time saat pengguna diam
 const executeAutoLogout = () => {
     const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
     if (isAuthenticated && route.name !== 'login' && !showTimeoutModal.value) {
@@ -133,24 +117,21 @@ const executeAutoLogout = () => {
     }
 };
 
-// Aksi dari tombol "Kembali ke Login" pada modal timeout
 const confirmTimeout = () => {
     isAutoLogout = true;
     showTimeoutModal.value = false;
-    
-    // Bersihkan sesi dan riwayat aktivitas
+
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userData');
     localStorage.removeItem('lastActivity');
-    
+
     fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     router.push('/login');
 };
 
 const updateActivityAndResetTimer = () => {
     const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
-    
-    // Matikan pencatatan jika belum login atau sedang di halaman login
+
     if (route.name === 'login' || !isAuthenticated || showTimeoutModal.value) {
         if (timeoutTimer) clearTimeout(timeoutTimer);
         return;
@@ -162,21 +143,18 @@ const updateActivityAndResetTimer = () => {
     timeoutTimer = setTimeout(executeAutoLogout, INACTIVITY_LIMIT);
 };
 
-// Pengecekan saat halaman dimuat/refresh (mencegah bypass Ctrl+R)
 const checkInitialIdleState = () => {
     const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
     if (route.name === 'login' || !isAuthenticated) return;
-    
+
     const lastActivity = localStorage.getItem('lastActivity');
-    
-    // Jika batas waktu terlewati saat user me-refresh
+
     if (lastActivity && (Date.now() - parseInt(lastActivity)) > INACTIVITY_LIMIT) {
-        // PERBAIKAN: Langsung bersihkan sesi tanpa memunculkan modal
         isAutoLogout = true;
         localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('userData');
         localStorage.removeItem('lastActivity');
-        
+
         fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
         router.push('/login');
     }
@@ -213,15 +191,14 @@ onUnmounted(() => {
     if (timeoutTimer) clearTimeout(timeoutTimer);
 });
 
-// Reactivity pada perubahan router
 watch(() => route.name, (newName, oldName) => {
     if (newName === 'login') {
         if (timeoutTimer) clearTimeout(timeoutTimer);
         removeActivityListeners();
-        
+
         localStorage.removeItem('lastActivity');
         showTimeoutModal.value = false;
-        
+
         if (oldName && oldName !== 'login') {
             if (isAutoLogout) {
                 isAutoLogout = false;
@@ -241,7 +218,7 @@ watch(() => route.name, (newName, oldName) => {
                 setTimeout(() => { showSuccessToast.value = false; }, 5000);
             }
         }
-        
+
         checkInitialIdleState();
         setupActivityListeners();
         updateActivityAndResetTimer();

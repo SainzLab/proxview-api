@@ -1,8 +1,6 @@
 <template>
   <header class="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-6 sm:px-8 sticky top-0 z-40 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors">
-    <!-- Breadcrumb Menu & Jam Digital WIB -->
     <div class="flex items-center gap-3">
-      <!-- Breadcrumb Navigasi Halaman Aktif -->
       <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-medium">
         <router-link to="/dashboard" class="flex items-center gap-1.5 text-slate-500 hover:text-slate-900 transition">
           <i class="ph-bold ph-hard-drives text-slate-400 text-sm"></i>
@@ -17,16 +15,13 @@
 
       <div class="hidden sm:block h-4 w-px bg-slate-200"></div>
 
-      <!-- Jam Digital WIB -->
       <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md text-slate-700 tracking-wider shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
         <i class="ph-fill ph-clock text-slate-400 text-sm"></i>
         <span class="font-mono text-[11px] font-bold tracking-tight">{{ currentTime }}</span>
       </div>
     </div>
 
-    <!-- Aksi Kanan Atas: Toggle Tema, Notifikasi, Pengaturan Master -->
     <div class="flex items-center gap-2">
-      <!-- Quick Toggle Mode Terang / Gelap -->
       <button 
         @click="toggleTheme" 
         :title="isDark ? 'Beralih ke Mode Terang' : 'Beralih ke Mode Gelap'" 
@@ -36,7 +31,6 @@
         <i class="ph-bold text-lg" :class="isDark ? 'ph-sun text-amber-500' : 'ph-moon text-slate-600'"></i>
       </button>
 
-      <!-- Tombol Notifikasi + Dropdown -->
       <div class="relative" ref="notifWrapper">
         <button 
           @click.stop="toggleDropdown" 
@@ -53,7 +47,6 @@
           </span>
         </button>
 
-        <!-- Dropdown Notifikasi -->
         <div v-if="showDropdown" @click.stop class="absolute right-0 mt-3 w-96 bg-white border border-slate-200/80 rounded-xl shadow-xl overflow-hidden z-50 animate-fade-in font-sans">
           <div class="px-4 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
             <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -103,7 +96,6 @@
         </div>
       </div>
 
-      <!-- Tombol Pengaturan Master -->
       <button 
         @click.stop="openSettingsModal('appearance')" 
         title="Pengaturan Sistem" 
@@ -115,14 +107,11 @@
     </div>
   </header>
 
-<!-- Modal Master Pengaturan -->
   <Teleport to="body">
     <div v-if="showSettingsModal" class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in font-sans" @click.self="showSettingsModal = false">
-      
-      <!-- PERBAIKAN 1: Mengunci tinggi modal (h-[650px]) agar konsisten di semua tab dan tidak naik-turun -->
+
       <div class="bg-white border border-slate-200/80 rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden h-[650px] max-h-[90vh]">
-        
-        <!-- Sidebar Menu Pengaturan -->
+
         <div class="w-full md:w-64 bg-slate-50/50 border-b md:border-b-0 md:border-r border-slate-200/80 flex flex-col shrink-0">
           <div class="p-6 border-b border-slate-200/80">
             <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -146,15 +135,13 @@
           </div>
         </div>
 
-        <!-- Konten Pengaturan -->
         <div class="flex-1 flex flex-col bg-white overflow-hidden relative">
-          <!-- Header Konten -->
           <div class="px-8 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
             <div>
               <h2 class="text-xl font-bold text-slate-900 mb-1" v-if="activeSettingTab === 'appearance'">Tampilan & Tema</h2>
               <h2 class="text-xl font-bold text-slate-900 mb-1" v-if="activeSettingTab === 'cleanup'">Cronjob Pembersihan Otomatis</h2>
               <h2 class="text-xl font-bold text-slate-900 mb-1" v-if="activeSettingTab === 'simulation'">Simulasi & Pengujian Sistem</h2>
-              
+
               <p class="text-sm text-slate-500" v-if="activeSettingTab === 'appearance'">Sesuaikan mode antarmuka antarmuka monitoring sesuai kenyamanan visual Anda.</p>
               <p class="text-sm text-slate-500" v-if="activeSettingTab === 'cleanup'">Konfigurasi interval penghapusan otomatis data log sistem dan riwayat gangguan.</p>
               <p class="text-sm text-slate-500" v-if="activeSettingTab === 'simulation'">Uji kesiapan pengiriman notifikasi push Firebase dan panggilan darurat VoIP.</p>
@@ -165,12 +152,10 @@
           </div>
 
           <div class="flex-1 overflow-y-auto p-6 md:p-8 pt-6">
-            
-            <!-- TAB: TAMPILAN & TEMA -->
+
             <div v-if="activeSettingTab === 'appearance'" class="animate-fade-in">
               <label class="block text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">Pilih Tema Antarmuka</label>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
-                <!-- Mode Terang -->
                 <button type="button" @click="isDark ? toggleTheme() : null" class="border-2 rounded-xl p-5 flex flex-col items-center gap-3 transition-all relative text-left" :class="!isDark ? 'border-slate-900 bg-slate-50/80 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'">
                   <div v-if="!isDark" class="absolute top-3 right-3 text-emerald-600">
                     <i class="ph-fill ph-check-circle text-xl"></i>
@@ -184,7 +169,6 @@
                   </div>
                 </button>
 
-                <!-- Mode Gelap -->
                 <button type="button" @click="!isDark ? toggleTheme() : null" class="border-2 rounded-xl p-5 flex flex-col items-center gap-3 transition-all relative text-left" :class="isDark ? 'border-emerald-500 bg-[#0f172a] shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'">
                   <div v-if="isDark" class="absolute top-3 right-3 text-emerald-400">
                     <i class="ph-fill ph-check-circle text-xl"></i>
@@ -200,20 +184,16 @@
               </div>
             </div>
 
-            <!-- TAB: PEMBERSIHAN (CRONJOB) -->
             <div v-if="activeSettingTab === 'cleanup'" class="animate-fade-in flex flex-col">
-              
-              <!-- Warning Banner untuk Non-Admin -->
+
               <div v-if="!isAdmin" class="mb-5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200/60 text-amber-800 text-xs font-medium flex items-center gap-2 shadow-sm">
                 <i class="ph-bold ph-shield-warning text-base text-amber-600 shrink-0"></i>
                 <span>Anda masuk dengan role <strong>{{ currentUser.role }}</strong>. Hanya role <strong>Admin</strong> yang berwenang mengubah jadwal cronjob.</span>
               </div>
 
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                <!-- CARD 1: LOG SISTEM -->
+
                 <div class="bg-white border border-slate-200 rounded-xl flex flex-col shadow-sm overflow-hidden">
-                  <!-- Header Card (Desain Baru dengan Toggle Switch) -->
                   <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-4">
                     <div class="flex items-center gap-3 min-w-0">
                       <div class="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
@@ -224,7 +204,6 @@
                         <p class="text-[11px] text-slate-500 mt-0.5 truncate">Tabel <code class="font-mono text-slate-700">system_logs</code> (<span class="font-bold">{{ cleanupForm.system_logs.current_count }}</span> baris)</p>
                       </div>
                     </div>
-                    <!-- Modern Toggle Switch -->
                     <div class="flex items-center gap-2 shrink-0">
                       <button type="button" @click="isAdmin ? cleanupForm.system_logs.is_enabled = !cleanupForm.system_logs.is_enabled : null" :disabled="!isAdmin" class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" :class="cleanupForm.system_logs.is_enabled ? 'bg-emerald-500' : 'bg-slate-300'">
                         <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" :class="cleanupForm.system_logs.is_enabled ? 'translate-x-4' : 'translate-x-0'"></span>
@@ -232,7 +211,6 @@
                     </div>
                   </div>
 
-                  <!-- Body Card -->
                   <div class="p-5 flex-1 space-y-5">
                     <div>
                       <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Interval </label>
@@ -255,7 +233,6 @@
                     </div>
                   </div>
 
-                  <!-- Footer Card -->
                   <div class="p-5 pt-0 mt-auto space-y-3">
                     <div class="text-xs text-slate-500 space-y-1.5 bg-slate-50/80 p-3.5 rounded-lg border border-slate-100">
                       <p class="flex justify-between items-center">
@@ -276,9 +253,7 @@
                   </div>
                 </div>
 
-                <!-- CARD 2: RIWAYAT GANGGUAN -->
                 <div class="bg-white border border-slate-200 rounded-xl flex flex-col shadow-sm overflow-hidden">
-                  <!-- Header Card (Desain Baru dengan Toggle Switch) -->
                   <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-4">
                     <div class="flex items-center gap-3 min-w-0">
                       <div class="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
@@ -289,7 +264,6 @@
                         <p class="text-[11px] text-slate-500 mt-0.5 truncate">Tiket Selesai (<span class="font-bold">{{ cleanupForm.incident_history.current_count }}</span> riwayat)</p>
                       </div>
                     </div>
-                    <!-- Modern Toggle Switch -->
                     <div class="flex items-center gap-2 shrink-0">
                       <button type="button" @click="isAdmin ? cleanupForm.incident_history.is_enabled = !cleanupForm.incident_history.is_enabled : null" :disabled="!isAdmin" class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" :class="cleanupForm.incident_history.is_enabled ? 'bg-emerald-500' : 'bg-slate-300'">
                         <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" :class="cleanupForm.incident_history.is_enabled ? 'translate-x-4' : 'translate-x-0'"></span>
@@ -297,7 +271,6 @@
                     </div>
                   </div>
 
-                  <!-- Body Card -->
                   <div class="p-5 flex-1 space-y-5">
                     <div>
                       <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Interval </label>
@@ -320,7 +293,6 @@
                     </div>
                   </div>
 
-                  <!-- Footer Card -->
                   <div class="p-5 pt-0 mt-auto space-y-3">
                     <div class="text-xs text-slate-500 space-y-1.5 bg-slate-50/80 p-3.5 rounded-lg border border-slate-100">
                       <p class="flex justify-between items-center">
@@ -344,10 +316,8 @@
               </div>
             </div>
 
-            <!-- TAB: SIMULASI PENGUJIAN -->
             <div v-if="activeSettingTab === 'simulation'" class="animate-fade-in space-y-6">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl">
-                <!-- Uji Notifikasi Biasa -->
                 <div class="bg-white border border-slate-200 rounded-xl p-6 hover:border-slate-300 transition shadow-sm flex flex-col justify-between">
                   <div class="mb-6">
                     <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center mb-4">
@@ -362,7 +332,6 @@
                   </button>
                 </div>
 
-                <!-- Uji CallKit -->
                 <div class="bg-white border border-slate-200 rounded-xl p-6 hover:border-slate-300 transition shadow-sm flex flex-col justify-between">
                   <div class="mb-6">
                     <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 border border-rose-200/60 flex items-center justify-center mb-4">
@@ -378,7 +347,6 @@
                 </div>
               </div>
 
-              <!-- Hasil Pengujian Simulasi -->
               <div v-if="testResult.text" class="flex items-start gap-3 text-xs font-semibold px-4 py-3.5 rounded-xl border animate-fade-in max-w-3xl" :class="testResult.isError ? 'bg-rose-50 border-rose-200/60 text-rose-800' : (testResult.isLoading ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-emerald-50 border-emerald-200/60 text-emerald-800')">
                 <i class="text-lg mt-0.5 shrink-0" :class="testResult.isError ? 'ph-bold ph-warning-circle text-rose-600' : (testResult.isLoading ? 'ph-bold ph-spinner animate-spin text-slate-600' : 'ph-bold ph-check-circle text-emerald-600')"></i>
                 <span class="break-words leading-relaxed">{{ testResult.text }}</span>
@@ -386,7 +354,6 @@
             </div>
           </div>
 
-          <!-- Footer Konten (Hanya tampil untuk tab Cleanup, selaras dengan Threshold & Proxmox Config) -->
           <div v-if="activeSettingTab === 'cleanup'" class="px-8 py-4 border-t border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
             <div class="flex items-center gap-2 text-xs font-medium" :class="hasUnsavedCleanupChanges ? 'text-amber-600' : 'text-slate-500'">
               <i class="ph-fill text-sm shrink-0" :class="hasUnsavedCleanupChanges ? 'ph-warning-circle text-amber-500' : 'ph-check-circle text-emerald-500'"></i>
@@ -421,7 +388,6 @@
     </div>
   </Teleport>
 
-  <!-- Popup Semua Notifikasi Gangguan -->
   <Teleport to="body">
     <div 
       v-if="showModal" 
@@ -481,7 +447,6 @@
           </button>
         </div>
 
-        <!-- Tab Aktif -->
         <div v-if="activeTab === 'active'" class="overflow-y-auto flex-1 divide-y divide-slate-100 bg-white">
           <div v-if="alerts.length === 0" class="p-12 text-center text-sm text-slate-500 font-medium">
             <i class="ph-fill ph-check-circle text-3xl text-emerald-500 block mb-2"></i> 
@@ -503,7 +468,6 @@
           </div>
         </div>
 
-        <!-- Tab Riwayat -->
         <div v-else class="overflow-y-auto flex-1 divide-y divide-slate-100 bg-white">
           <div v-if="history.length === 0" class="p-12 text-center text-sm text-slate-500 font-medium">
             <i class="ph ph-clock-counter-clockwise text-3xl block mb-2 text-slate-400"></i> 
@@ -542,7 +506,6 @@
     </div>
   </Teleport>
 
-  <!-- Modal Konfirmasi Batalkan Perubahan Cronjob (Selaras dengan Threshold Config) -->
   <Teleport to="body">
     <div
       v-if="showDiscardCleanupModal"
@@ -583,7 +546,6 @@
     </div>
   </Teleport>
 
-  <!-- Modal Konfirmasi Pembersihan Manual -->
   <Teleport to="body">
     <div 
       v-if="confirmCleanupModal.show" 
@@ -647,9 +609,6 @@ const route = useRoute();
 const currentTime = ref('');
 let timer = null;
 
-// ==========================================
-// BREADCRUMB METADATA HAPALAN RUTE
-// ==========================================
 const routeMetaMap = {
   'dashboard': { title: 'Dashboard', icon: 'ph-squares-four' },
   'kelola-pengguna': { title: 'Kelola Pengguna', icon: 'ph-users' },
@@ -665,7 +624,6 @@ const currentRouteMeta = computed(() => {
   return routeMetaMap[route.name] || { title: 'Monitoring', icon: 'ph-monitor' };
 });
 
-// Update Digital Clock (WIB / Asia/Jakarta)
 const updateClock = () => {
   const time = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Jakarta',
@@ -677,9 +635,6 @@ const updateClock = () => {
   currentTime.value = `${time} WIB`;
 };
 
-// ==========================================
-// USER AUTH & RBAC CHECK
-// ==========================================
 const currentUser = ref({ role: 'Admin' });
 const isAdmin = computed(() => currentUser.value?.role === 'Admin');
 
@@ -694,11 +649,8 @@ const loadCurrentUser = () => {
   }
 };
 
-// ==========================================
-// MASTER PENGATURAN (SETTINGS) STATE
-// ==========================================
 const showSettingsModal = ref(false);
-const activeSettingTab = ref('appearance'); // Opsi: appearance, cleanup, simulation
+const activeSettingTab = ref('appearance');
 
 const setSettingTab = (tab) => {
   activeSettingTab.value = tab;
@@ -717,9 +669,6 @@ const openSettingsModal = (tab = 'appearance') => {
   showSettingsModal.value = true;
 };
 
-// ==========================================
-// PENGATURAN CRONJOB PEMBERSIHAN OTOMATIS
-// ==========================================
 const isSavingCleanup = ref(false);
 const isRunningManual = ref('');
 const showDiscardCleanupModal = ref(false);
@@ -757,7 +706,6 @@ const serializeCleanupForm = (formState) => JSON.stringify({
   }
 });
 
-// Inisialisasi snapshot awal agar konsisten sebelum API selesai dimuat
 savedCleanupSnapshot.value = serializeCleanupForm(cleanupForm.value);
 
 const hasUnsavedCleanupChanges = computed(() => {
@@ -853,7 +801,7 @@ const requestManualCleanup = (targetKey) => {
   const modeText = mode === 'ALL'
     ? 'menghapus seluruh data'
     : `menghapus data yang lebih lama dari ${val} ${unitLabel}`;
-  
+
   confirmCleanupModal.value = {
     show: true,
     target: targetKey,
@@ -892,9 +840,6 @@ const executeManualCleanup = async () => {
   }
 };
 
-// ==========================================
-// SIMULASI ALARM (FCM & CALLKIT)
-// ==========================================
 const isTesting = ref(false);
 const isTestingType = ref('');
 const testResult = ref({ text: '', isError: false, isLoading: false });
@@ -903,7 +848,7 @@ const triggerSimulasi = async (type) => {
   isTesting.value = true;
   isTestingType.value = type;
   testResult.value = { text: 'Sedang menghubungi server dan mengirim muatan sinyal...', isError: false, isLoading: true };
-  
+
   try {
     const res = await fetch('/api/auth/simulate-fcm', {
       method: 'POST',
@@ -924,9 +869,6 @@ const triggerSimulasi = async (type) => {
   }
 };
 
-// ==========================================
-// NOTIFIKASI GANGGUAN (REALTIME AUTO-REFRESH)
-// ==========================================
 const alerts = ref([]);
 const history = ref([]);
 const activeTab = ref('active');

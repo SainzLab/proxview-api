@@ -1,11 +1,6 @@
 <template>
-  <!-- 
-    Ubah ke h-[calc(100vh-64px)] atau flex min-h-screen agar menyesuaikan tinggi layar.
-    Flex col membuat elemen anak berbaris ke bawah, dan flex-1 di terminal mengisi sisanya.
-  -->
   <main class="bg-[#f8f9fa] p-8 min-h-screen flex flex-col font-sans animate-fade-in">
-    
-    <!-- Header Halaman -->
+
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mb-6 shrink-0">
       <div>
         <h2 class="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-2.5">
@@ -15,10 +10,8 @@
       </div>
     </div>
 
-    <!-- Kartu Form Eksekusi -->
     <div class="bg-white border border-slate-200/80 rounded-xl p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] mb-6 shrink-0">
       <form @submit.prevent="runNetworkTool" class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
-        <!-- Dropdown Pilihan Tool -->
         <div class="lg:col-span-3">
           <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2"> Pilih Utilitas </label>
           <div class="relative">
@@ -31,13 +24,11 @@
           </div>
         </div>
 
-        <!-- Area Input Target -->
         <div class="lg:col-span-6">
           <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
             {{ form.tool === 'ipscan' ? 'Alamat Network IP & Prefix Subnet' : 'Alamat Target (IPv4 / IPv6 / Domain)' }}
           </label>
-          
-          <!-- Mode IP Scan: Input IP + Dropdown Prefix Subnet -->
+
           <div v-if="form.tool === 'ipscan'" class="flex gap-2.5">
             <div class="relative flex-1">
               <i class="ph-bold ph-network absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
@@ -47,28 +38,25 @@
               <option v-for="prefix in SUBNET_PREFIXES" :key="prefix" :value="prefix">{{ prefix }}</option>
             </select>
           </div>
-          
-          <!-- Mode Ping / Traceroute: Input Teks Penuh -->
+
           <div v-else class="relative">
             <i class="ph-bold ph-globe absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
             <input v-model="form.target" type="text" placeholder="Contoh: 8.8.8.8, google.com, atau 2001:4860::8888" autocomplete="off" :disabled="isLoading" class="w-full h-[42px] pl-10 pr-3.5 bg-white border border-slate-200 rounded-lg text-sm font-mono font-medium text-slate-900 placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] disabled:opacity-60" />
           </div>
         </div>
 
-        <!-- Tombol Aksi Submit / Stop -->
         <div class="lg:col-span-3 flex gap-2">
           <button type="submit" :disabled="isLoading || !hasTarget" class="flex-1 px-4 h-[42px] bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] disabled:opacity-50 disabled:cursor-not-allowed">
             <i class="ph-bold text-base" :class="isLoading ? 'ph-spinner animate-spin' : 'ph-play'"></i>
             <span>{{ isLoading ? 'Memproses...' : `Jalankan ${toolLabel}` }}</span>
           </button>
-          
+
           <button v-if="isLoading" type="button" @click="stopExecution" title="Hentikan Eksekusi" class="px-3.5 h-[42px] bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold transition flex items-center justify-center shrink-0">
             <i class="ph-bold ph-stop text-base"></i>
           </button>
         </div>
       </form>
 
-      <!-- Keterangan Ringkas Sesuai Utilitas -->
       <div class="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 font-medium">
         <span class="flex items-center gap-1.5">
           <i class="ph-fill ph-info text-slate-400 text-sm"></i>
@@ -84,7 +72,6 @@
       </div>
     </div>
 
-    <!-- Pesan Validasi / Error -->
     <div v-if="errorMessage" class="mb-6 bg-rose-50 border border-rose-200/60 text-rose-700 rounded-xl px-4 py-3 text-xs font-semibold flex items-center justify-between gap-3 animate-fade-in shrink-0">
       <div class="flex items-center gap-2.5">
         <i class="ph-bold ph-warning-circle text-base text-rose-600 shrink-0"></i>
@@ -95,11 +82,8 @@
       </button>
     </div>
 
-    <!-- Area Terminal Output (Console macOS Style) -->
-    <!-- flex-1 dan flex flex-col akan memaksanya mengisi sisa tinggi layar -->
     <div class="terminal-panel flex-1 flex flex-col bg-slate-900 rounded-xl p-5 shadow-sm overflow-hidden border border-slate-800 min-h-0">
-      
-      <!-- Header Terminal ala macOS (Tetap diam di atas) -->
+
       <div class="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-800 shrink-0">
         <div class="flex items-center gap-3 min-w-0">
           <div class="flex items-center gap-1.5 shrink-0">
@@ -111,8 +95,7 @@
             console@proxview:~# {{ lastExecutedCommand || commandPreview }}
           </span>
         </div>
-        
-        <!-- Status & Tombol Utilitas Terminal -->
+
         <div class="flex items-center gap-2 shrink-0">
           <span v-if="isLoading" class="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
             <i class="ph-bold ph-spinner animate-spin"></i> Live Stream
@@ -128,8 +111,6 @@
         </div>
       </div>
 
-      <!-- Konten Output Stream (Scrollable) -->
-      <!-- Menghapus batasan max-h agar pre mengisi ruang sisa secara penuh -->
       <pre ref="terminalPre" class="flex-1 font-mono text-xs text-emerald-400 whitespace-pre-wrap break-words overflow-y-auto leading-relaxed"><template v-if="outputResult">{{ outputResult }}</template><template v-else-if="isLoading">Memproses {{ toolLabel.toLowerCase() }}... harap tunggu...</template><span v-else class="text-slate-500 select-none">$ Siap mengeksekusi perintah diagnosa jaringan. Pilih utilitas dan masukkan target di atas...</span></pre>
     </div>
   </main>
@@ -144,7 +125,6 @@ const TOOL_LABELS = {
   ipscan: 'IP Scan'
 };
 
-// Opsi prefix subnet untuk IP Scan
 const SUBNET_PREFIXES = ['/16', '/23', '/24', '/32', '/64', '/128'];
 
 const form = reactive({
@@ -162,7 +142,6 @@ const copied = ref(false);
 const terminalPre = ref(null);
 let abortController = null;
 
-// Reset target & pesan error ketika jenis tool diganti
 watch(() => form.tool, () => {
   form.target = '';
   form.target_ip = '';
@@ -218,26 +197,25 @@ const copyOutput = async () => {
       copied.value = false;
     }, 2000);
   } catch (_) {
-    // Abaikan jika clipboard tidak diizinkan browser
   }
 };
 
 const runNetworkTool = async () => {
   if (isLoading.value || !hasTarget.value) return;
-  
+
   isLoading.value = true;
   outputResult.value = '';
   errorMessage.value = '';
 
   const finalTarget = form.tool === 'ipscan' ? form.target_ip.trim() + form.target_subnet : form.target.trim();
   const isV6 = finalTarget.includes(':');
-  
+
   lastExecutedCommand.value = form.tool === 'ipscan' 
     ? `nmap ${isV6 ? '-6 ' : ''}-sn ${finalTarget}` 
     : (form.tool === 'ping'
         ? (isV6 ? `ping -6 -c 4 ${finalTarget}` : `ping -c 10 ${finalTarget}`)
         : (isV6 ? `traceroute -6 ${finalTarget}` : `traceroute ${finalTarget}`));
-    
+
   abortController = new AbortController();
 
   try {
@@ -249,14 +227,12 @@ const runNetworkTool = async () => {
       body: JSON.stringify({ target: finalTarget })
     });
 
-    // Error validasi (400) atau sesi dikirim sebagai JSON
     if (!response.ok) {
       let message = `${toolLabel.value} gagal dijalankan.`;
       try {
         const json = await response.json();
         message = json.message || json.output || message;
       } catch (_) {
-        // body bukan JSON
       }
       errorMessage.value = message;
       return;
