@@ -19,7 +19,7 @@ try {
     console.error('[CRITICAL ERROR] Gagal menginisialisasi Firebase Admin. Pastikan file serviceAccountKey.json tersedia.', error.message);
 }
 
-import { login, logout, mobileLogin, simulateFCM } from './controllers/authController.js';
+import { getCaptcha, login, logout, mobileLogin, simulateFCM } from './controllers/authController.js';
 import { getUsers, createUser, updateUser, deleteUser, getToken, resetToken, toggleUserStatus } from './controllers/userController.js';
 import { getTargets, createTarget, updateTarget, deleteTarget, toggleTargetStatus, getTargetHistory, getSystemStatus } from './controllers/targetController.js';
 import { startMonitoringDaemon } from './services/monitoringDaemon.js';
@@ -29,6 +29,7 @@ import { getNetworkThresholds, saveNetworkThresholds, getProxmoxThresholds, save
 import { getActiveAlerts, getAlertHistory } from './controllers/mobileAlertController.js';
 import { getTasksLog, getClusterLog, getTaskDetailLog } from './controllers/proxmoxLogController.js';
 import { verifyApiToken, verifyWebAuth, requireAdmin, attachWebUserIfPresent, attachMobileUserIfPresent } from './middlewares/authMiddleware.js';
+import { loginRateLimiter, captchaRateLimiter, authEndpointRateLimiter } from './middlewares/rateLimitMiddleware.js';
 import { getIncidents, getIncidentStats, joinIncident, resolveIncident, getAnalytics, getMobileAnalyticsSummary } from './controllers/incidentController.js';
 import { getCleanupSettings, saveCleanupSettings, runManualCleanup } from './controllers/cleanupController.js';
 import { getDashboardSummary } from './controllers/dashboardController.js';
@@ -41,6 +42,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === 'production';
+
+if (process.env.TRUST_PROXY) {
+    app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : process.env.TRUST_PROXY);
+}
+
 app.use(express.static(path.join(__dirname, '../public/dist')));
 
 const resolveViteManifestAssets = () => {
@@ -71,9 +77,10 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 app.use('/assets', express.static(path.join(process.cwd(), 'public', 'dist', 'assets')));
 
 // Route Auth (Web)
-app.post('/api/auth/login', login);
-app.post('/api/auth/logout', attachWebUserIfPresent, logout);
-app.get('/api/auth/me', verifyWebAuth, (req, res) => {
+app.get('/api/auth/captcha', captchaRateLimiter, getCaptcha);
+app.post('/api/auth/login', loginRateLimiter, login);
+app.post('/api/auth/logout', authEndpointRateLimiter, attachWebUserIfPresent, logout);
+app.get('/api/auth/me', authEndpointRateLimiter, verifyWebAuth, (req, res) => {
     res.json({ success: true, data: req.user });
 });
 
@@ -149,8 +156,8 @@ app.get('/api/export/pdf/incidents', attachMobileUserIfPresent, exportIncidentsP
 app.get('/api/export/pdf/dashboard', attachMobileUserIfPresent, exportDashboardPdf);
 
 // ROUTE API MOBILE V1 (Wajib Bearer Token)
-app.post('/api/mobile/v1/auth/login', mobileLogin);
-app.get('/api/mobile/v1/auth/me', verifyApiToken, (req, res) => {
+app.post('/api/mobile/v1/auth/login', loginRateLimiter, mobileLogin);
+app.get('/api/mobile/v1/auth/me', authEndpointRateLimiter, verifyApiToken, (req, res) => {
     res.json({ success: true, data: req.user });
 });
 app.get('/api/mobile/v1/system/status', verifyApiToken, getSystemStatus);
@@ -184,7 +191,7 @@ app.use('/api/mobile/tools', verifyApiToken, mobileToolsRoutes);
 app.use('/api/mobile/v1/tools', verifyApiToken, mobileToolsRoutes);
 
 // FCM
-app.post('/api/auth/simulate-fcm', simulateFCM);
+app.post('/api/auth/simulate-fcm', authEndpointRateLimiter, simulateFCM);
 
 app.get(/^(?!\/api).*/, (req, res) => {
     const viteAssets = isProd ? resolveViteManifestAssets() : null;

@@ -38,17 +38,15 @@
                     <div class="pt-2">
                         <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Verifikasi Keamanan</label>
                         <div class="flex items-center gap-3 mb-3">
-                            <div class="bg-slate-50/50 p-1 rounded-lg border border-slate-200 w-[140px] h-[45px] overflow-hidden shadow-inner">
-                                <canvas ref="captchaCanvas" width="130" height="35" class="w-full h-full cursor-crosshair"></canvas>
+                            <div class="bg-slate-50/50 p-1 rounded-lg border border-slate-200 w-[140px] h-[45px] overflow-hidden shadow-inner flex items-center justify-center">
+                                <img v-if="activeCaptchaImage" :src="activeCaptchaImage" alt="Kode Verifikasi CAPTCHA" class="w-full h-full object-fill select-none pointer-events-none" draggable="false" >
+                                <i v-else class="ph-bold ph-spinner animate-spin text-slate-400 text-base"></i>
                             </div>
-                            <button type="button" @click="generateCaptcha" class="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]" title="Refresh CAPTCHA" >
-                                <i class="ph-bold ph-arrows-clockwise text-lg"></i>
+                            <button type="button" @click="fetchCaptcha" :disabled="isLoadingCaptcha || isLoggingIn" class="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-50 rounded-lg transition shadow-[0_1px_2px_rgba(0,0,0,0.02)]" title="Refresh CAPTCHA" >
+                                <i class="ph-bold ph-arrows-clockwise text-lg" :class="{ 'animate-spin': isLoadingCaptcha }"></i>
                             </button>
                         </div>
-                        <input type="text" v-model="form.captchaInput" placeholder="Ketik kode di atas" class="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold tracking-tight rounded-lg px-4 py-2.5 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] uppercase font-mono placeholder:text-slate-400 placeholder:font-sans placeholder:font-medium placeholder:tracking-normal" required >
-                        <p v-if="captchaError" class="text-rose-600 text-xs mt-2 font-medium flex items-center gap-1.5">
-                            <i class="ph-bold ph-warning-circle"></i> Kode CAPTCHA tidak cocok, coba lagi.
-                        </p>
+                        <input type="text" v-model="form.captchaInput" maxlength="6" autocomplete="off" placeholder="Ketik kode di atas" class="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold tracking-tight rounded-lg px-4 py-2.5 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition shadow-[0_1px_2px_rgba(0,0,0,0.02)] uppercase font-mono placeholder:text-slate-400 placeholder:font-sans placeholder:font-medium placeholder:tracking-normal" required >
                     </div>
 
                     <div class="pt-4">
@@ -98,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { isDark, toggleTheme } from '../../utils/theme.js';
 import ToastNotification from '@/components/common/ToastNotification.vue';
@@ -110,12 +108,17 @@ const form = ref({
     captchaInput: ''
 });
 const showPassword = ref(false);
-const captchaCanvas = ref(null);
-const actualCaptchaText = ref('');
-const captchaError = ref(false);
+const captchaId = ref('');
+const captchaImage = ref('');
+const captchaImageDark = ref('');
+const isLoadingCaptcha = ref(false);
 const isLoggingIn = ref(false);
 const toast = ref({ show: false, type: 'error', title: '', message: '' });
 let toastTimer = null;
+
+const activeCaptchaImage = computed(() => {
+    return isDark.value ? (captchaImageDark.value || captchaImage.value) : captchaImage.value;
+});
 
 const showToast = (type, title, message) => {
     toast.value = { show: true, type, title, message };
@@ -125,79 +128,91 @@ const showToast = (type, title, message) => {
     }, 5000);
 };
 
-const generateCaptcha = () => {
-    if (!captchaCanvas.value) return;
-    const ctx = captchaCanvas.value.getContext('2d');
-    const width = captchaCanvas.value.width;
-    const height = captchaCanvas.value.height;
+const fetchCaptcha = async () => {
+    if (isLoadingCaptcha.value) return;
+    isLoadingCaptcha.value = true;
 
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = isDark.value ? '#0f172a' : '#f8fafc';
-    ctx.fillRect(0, 0, width, height);
+    try {
+        const query = captchaId.value ? `?prevId=${encodeURIComponent(captchaId.value)}` : '';
+        const response = await fetch(`/api/auth/captcha${query}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        const data = await response.json();
 
-    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    actualCaptchaText.value = code;
+        if (response.status === 429) {
+            showToast('error', 'Terlalu Banyak Permintaan', data.message || 'Silakan tunggu beberapa saat sebelum memuat ulang CAPTCHA.');
+            return;
+        }
 
-    ctx.font = 'bold 24px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-    ctx.textBaseline = 'middle';
-
-    for (let i = 0; i < code.length; i++) {
-        const xOffset = 15 + (i * 18);
-        const yOffset = height / 2 + (Math.random() * 6 - 3);
-        const angle = (Math.random() * 0.4) - 0.2;
-
-        ctx.save();
-        ctx.translate(xOffset, yOffset);
-        ctx.rotate(angle);
-        ctx.fillStyle = isDark.value ? '#f8fafc' : '#1e293b';
-        ctx.fillText(code[i], 0, 0);
-        ctx.restore();
-    }
-
-    for (let i = 0; i < 4; i++) {
-        ctx.strokeStyle = '#10b981';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(Math.random() * width, Math.random() * height);
-        ctx.lineTo(Math.random() * width, Math.random() * height);
-        ctx.stroke();
+        if (response.ok && data.success) {
+            captchaId.value = data.captchaId;
+            captchaImage.value = data.image;
+            captchaImageDark.value = data.imageDark || data.image;
+        } else {
+            showToast('error', 'Gagal Memuat CAPTCHA', data.message || 'Tidak dapat memuat kode verifikasi keamanan.');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('error', 'Kesalahan Jaringan', 'Gagal memuat kode verifikasi keamanan dari server.');
+    } finally {
+        isLoadingCaptcha.value = false;
     }
 };
 
 const handleLogin = async () => {
-    if (form.value.captchaInput.toLowerCase() !== actualCaptchaText.value.toLowerCase()) {
-        captchaError.value = true;
+    const trimmedCaptcha = form.value.captchaInput.trim();
+    if (!trimmedCaptcha || !captchaId.value) {
+        showToast('error', 'CAPTCHA Tidak Sesuai', 'Kode CAPTCHA tidak sesuai, silakan coba lagi.');
+        form.value.username = '';
+        form.value.password = '';
         form.value.captchaInput = '';
-        generateCaptcha();
+        await fetchCaptcha();
         return;
     }
-    captchaError.value = false;
+
     isLoggingIn.value = true;
 
     try {
         const response = await fetch('/api/auth/login', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 username: form.value.username,
-                password: form.value.password
+                password: form.value.password,
+                captchaId: captchaId.value,
+                captchaInput: trimmedCaptcha
             })
         });
         const data = await response.json();
+
+        if (response.status === 429) {
+            showToast('error', 'Akses Dibatasi Sementara', data.message || 'Terlalu banyak percobaan login. Silakan coba lagi nanti.');
+            form.value.password = '';
+            form.value.captchaInput = '';
+            if (data.code === 'ACCOUNT_LOCKED') {
+                await fetchCaptcha();
+            }
+            return;
+        }
 
         if (data.success) {
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userData', JSON.stringify(data.user));
             router.push('/dashboard');
+        } else if (data.code === 'CAPTCHA_INVALID' || data.code === 'CAPTCHA_EXPIRED' || data.code === 'CAPTCHA_REQUIRED') {
+            showToast('error', 'CAPTCHA Tidak Sesuai', data.message || 'Kode CAPTCHA tidak sesuai, silakan coba lagi.');
+            form.value.username = '';
+            form.value.password = '';
+            form.value.captchaInput = '';
+            await fetchCaptcha();
         } else {
             showToast('error', 'Otentikasi Gagal', data.message || 'Username atau password salah.');
             form.value.password = '';
             form.value.captchaInput = '';
-            generateCaptcha();
+            await fetchCaptcha();
         }
     } catch (err) {
         console.error(err);
@@ -207,11 +222,7 @@ const handleLogin = async () => {
     }
 };
 
-watch(isDark, () => {
-    generateCaptcha();
-});
-
 onMounted(() => {
-    generateCaptcha();
+    fetchCaptcha();
 });
 </script>

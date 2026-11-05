@@ -382,6 +382,15 @@ Perbaikan untuk Fase 1: Perbaikan Darurat (Immediate Action) sesuai SECURITY_AUD
       • Mengunci rute GET /api/settings/cleanup, PUT /api/settings/cleanup, dan POST /api/settings/cleanup/run di server.js:110-113 menggunakan middleware verifyWebAuth, requireAdmin.
       • Menambahkan validasi peran Admin secara eksplisit di dalam getCleanupSettings, saveCleanupSettings, dan runManualCleanup pada cleanupController.js, disertai pencatatan jejak audit identitas Admin yang
       mengeksekusi pembersihan log.
+
+  ### Ringkasan Perbaikan Fase 2 (Poin 3 & Poin 4)
+  3. Pemindahan Pembuatan & Validasi CAPTCHA Sepenuhnya ke Server Backend (Temuan 2.2)
+      • Menambahkan layanan server-side CAPTCHA (`src/backend/services/captchaService.js`) menggunakan CSPRNG (`crypto.randomInt` & `crypto.randomBytes`), penyimpanan hash SHA-256 di server dengan TTL 5 menit, sekali pakai (*single-use* anti-replay), perbandingan `crypto.timingSafeEqual`, serta perenderan SVG berbasis vektor `<path>` tanpa elemen `<text>` untuk tema terang dan gelap.
+      • Menambahkan endpoint `GET /api/auth/captcha` dan mewajibkan verifikasi CAPTCHA di sisi server pada `POST /api/auth/login` (`src/backend/controllers/authController.js`) sebelum pengecekan kredensial database.
+      • Memperbarui `src/frontend/components/auth/Login.vue` dengan menghapus pembuatan dan pencocokan CAPTCHA berbasis `<canvas>` di klien, serta mengintegrasikan pemuatan CAPTCHA dari server dan pengiriman `captchaId` + `captchaInput`.
+  4. Pemasangan Middleware Rate Limiting & Proteksi Brute-Force pada Seluruh Endpoint Otentikasi (Temuan 1.8)
+      • Menambahkan middleware pembatasan laju request (`src/backend/middlewares/rateLimitMiddleware.js`) lengkap dengan header standar `RateLimit-*` dan `Retry-After`, serta mekanisme penguncian akun sementara (*temporary account lockout*) setelah percobaan gagal berturut-turut pada `login` dan `mobileLogin`.
+      • Memasang middleware rate limiting (`loginRateLimiter`, `captchaRateLimiter`, dan `authEndpointRateLimiter`) pada seluruh endpoint otentikasi di `src/backend/server.js` (`/api/auth/captcha`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/simulate-fcm`, `/api/mobile/v1/auth/login`, dan `/api/mobile/v1/auth/me`).
 *Progres Perbaikan*
 
 NOTE BUG
