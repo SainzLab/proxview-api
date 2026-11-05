@@ -27,3 +27,4 @@ logs/
 *.swp
 src/backend/serviceAccountKey.json
 SECURITY_AUDIT_REPORT.md
+laporan_pengujian_keamanan.md
